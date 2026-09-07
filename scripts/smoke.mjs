@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 
-const base = new URL(process.env.PUSH_API_URL ?? 'http://127.0.0.1:8080/api/v1/');
+const base = new URL(`${(process.env.PUSH_API_URL ?? 'http://127.0.0.1:8080/api/v1').replace(/\/$/, '')}/`);
 assert(['127.0.0.1', 'localhost', '[::1]'].includes(base.hostname), 'Smoke checks create data: use a local test API');
 assert(process.env.DEV_AUTH_TOKEN, 'Set DEV_AUTH_TOKEN for the local test API');
 const request = async (method, path, body, expected = 200, options = {}) => {
@@ -114,6 +114,31 @@ for (const provider of ['CODEX', 'CLAUDE_CODE', 'GROK_BUILD']) {
     expectedRevision: run.revision, approvalId: denied.id, detectedVersion: 'test-only', deviceId: randomUUID(),
   }, 409);
 }
+const scheduledAt = new Date(Date.now() + 86400000).toISOString();
+const interview = await request('POST', 'interviews', {
+  applicationId: a.application.id, title: `면접 ${tag}`, scheduledAt, durationMinutes: 60, evidenceIds: [evidence.id],
+}, 201);
+const preparation = await completed(await request('POST', `interviews/${interview.id}/prepare`, {
+  expectedRevision: interview.revision, ai: null,
+}, 202));
+assert(preparation.starAnswers.some((answer) => answer.evidenceIds.includes(evidence.id)));
+assert.equal((await request('GET', `interviews?applicationId=${b.application.id}`)).length, 0);
+const calendar = await request('GET', `calendar/events?from=${new Date().toISOString()}&to=${new Date(Date.now() + 172800000).toISOString()}&applicationId=${a.application.id}`);
+assert(calendar.some((event) => event.id === interview.eventId));
+const offer = await request('POST', 'offers', {
+  applicationId: a.application.id, company: `A-${tag}`, annualSalaryMinor: 70000000, currency: 'KRW',
+}, 201);
+const foreignOffer = await request('POST', 'offers', {
+  applicationId: b.application.id, company: `B-${tag}`, annualSalaryMinor: 9000000, currency: 'USD',
+}, 201);
+const comparison = await request('GET', `offers/compare?ids=${offer.id},${foreignOffer.id}`);
+assert.equal(comparison.comparison.sameCurrency, false);
+const routine = await request('POST', 'routines', {
+  applicationId: a.application.id, title: `면접 준비 ${tag}`, kind: 'INTERVIEW_PREP', dueAt: scheduledAt,
+}, 201);
+await request('PATCH', `routines/${routine.id}`, { expectedRevision: routine.revision, status: 'DONE' }, 409);
+const confirmed = await request('PATCH', `routines/${routine.id}`, { expectedRevision: routine.revision, status: 'CONFIRMED' });
+assert.equal((await request('PATCH', `routines/${routine.id}`, { expectedRevision: confirmed.revision, status: 'DONE' })).status, 'DONE');
 await request('GET', 'jobs', undefined, 401, { anonymous: true });
 await request('POST', 'integrations/google/sync', {}, 403);
-console.log(JSON.stringify({ result: 'PASS', run: tag, checks: ['idempotency', 'evidence-lineage', 'fabrication-blocked', 'revision-conflict', 'two-job-isolation', 'submission-draft-approval', 'four-blueprints', 'three-cli-denials', 'auth-required', 'google-flag'] }));
+console.log(JSON.stringify({ result: 'PASS', run: tag, checks: ['idempotency', 'evidence-lineage', 'fabrication-blocked', 'revision-conflict', 'two-job-isolation', 'submission-draft-approval', 'four-blueprints', 'three-cli-denials', 'interview-evidence', 'calendar-link', 'currency-comparison', 'routine-confirmation', 'auth-required', 'google-flag'] }));

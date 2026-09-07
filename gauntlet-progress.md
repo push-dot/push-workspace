@@ -6,14 +6,14 @@ Goal: implement docs/plan.md, replace empty API contract, create private push-do
 
 - Product contract: docs/plan.md, retrieved 2026-09-07. Final UI decision supersedes initial right-panel requirement.
 - Visual reference: docs/no-right-sidebar-prototype-v6.png (1672×941), inspected. Historical Aside captures are missing; no claim of comparison to those captures.
-- Domain reference: installed Super Resume skill package at /Users/cyjoon/.codex/plugins/cache/super-resume-marketplace/super-resume/0.1.0+codex.20260822061938; builders must inspect relevant source workflow before porting.
+- Domain reference: docs/plan.md and docs/api.md only. Fresh implementation; user forbids legacy/Super Resume code references.
 - Comparison mode: champion/challenger against product specification (cross-medium); UI compares rendered candidates against prototype. Each critic receives neutral immutable candidate versions and version-matched checks, never this progress file.
 - Acceptance: evidence lineage; two-job isolation; fabricated claims blocked at finalization; PDF/DOCX Korean text, pagination and links; OAuth return and expiration; offline editing/conflicts; webhook idempotency; CLI absent/denied/failure/verified; no unapproved application submission; secrets absent from logs; keyboard/dark/narrow UI; actual beta 16/20 successful journeys.
-- Tools: Codex collaboration spawn_agent, fresh critics via fork_turns=none; inherited model settings. Implementers sequential; only lead spawns. No background automation.
+- Tools: Codex collaboration spawn_agent, fresh critics via fork_turns=none; inherited model settings. FE and BE parallel after API publication, as explicitly requested; only lead spawns. No background automation.
 
 ## Tasks
 
-1. Domain workflow port and server API + docs contract — pending.
+1. Fresh domain implementation and server API — in progress; API contract published.
 2. Tauri desktop shell, vertical tabs, home command and company chats without right sidebar — pending.
 3. Vault, analysis, editor, versions and PDF/DOCX — pending.
 4. Pipeline, calendar, interviews and offers — pending.
@@ -32,14 +32,14 @@ No existing executable code or test suite; baseline consists of README and untra
 
 ## Evidence and next action
 
-No passing implementation or critic verdict yet. Backend builder first, frontend next. External integrations must fail closed when credentials/permissions are absent; never label mocks as live integrations.
+Initial API, server and frontend checkpoints have passed scoped checks recorded below. Full gauntlet convergence remains pending. External integrations must fail closed when credentials/permissions are absent; never label mocks as live integrations.
 
 2026-09-07 user steering: external VPS/OAuth/Stripe/Apple/beta not prepared; proceed with implementation and local verification. External launch criteria stay explicitly pending, not a reason to stop local work.
-Backend builder agent: /root/backend_builder, owns push-be and docs/api.md. Running actual PostgreSQL on 127.0.0.1:55432/push_test for integration tests.
+Backend builder agent: /root/backend_builder, owns push-be. Lead owns docs/api.md. Running actual PostgreSQL on 127.0.0.1:55432/push_test for integration tests.
 
 2026-09-07 user steering: React HTTP MUST use ky; FSD structure with explicitly invoked feature-sliced-design skill. Loaded /Users/cyjoon/.agents/skills/feature-sliced-design/SKILL.md and layer/framework references. FSD v2.1 pages-first, index public APIs, no same-layer slice imports; no speculative layers. Frontend task must enforce this and test request auth/errors/no mutation retries.
 2026-09-07 user steering: state management MUST use Zustand (쥬스턴드). Required FE stack: React + ky + Zustand + FSD v2.1, Tauri v2, SQLite, TipTap. Place stores at owning layer; no app-store upward imports from pages.
-2026-09-07 user explicitly authorized FE/BE parallel after API doc. Initial contract exists; overrides sequential implementer rule. Spawned /root/frontend_builder owning push-fe, while /root/backend_builder owns push-be/docs/api.md. Shared interface changes coordinated between builders. Lead owns root files, integration tests, immutable comparisons.
+2026-09-07 user explicitly authorized FE/BE parallel after API doc. Initial contract exists; overrides sequential implementer rule. Spawned /root/frontend_builder owning push-fe, while /root/backend_builder owns push-be; lead owns docs/api.md. Shared interface changes coordinated between builders. Lead owns root files, integration tests, immutable comparisons.
 
 Backend candidate checkpoint e7a80fe saved immutably in .artifacts/backend-a. Lead independently ran TEST_DATABASE_URL=local PostgreSQL go test -race -count=1 ./... on that snapshot: PASS (1.675s). This establishes phase-1 tests only, not complete server/runtime or external integration success. Next: full executable + auth/billing tests and challenger snapshot.
 
@@ -49,3 +49,7 @@ API preliminary independent check found 8 blocking ambiguities; repaired all in 
 Authoritative API now includes async 202 full Operation in data (poll data.id), explicit source-excerpt ai:null document generation, and exact native launch/recovery reporting. Both builders notified. FE reports 4 tests green (not yet independently verified); first runnable UI pending. Lead rewrote scripts/smoke.mjs against authoritative contract; node syntax check passes, live execution pending contract-ready server. API original file is visible at /Volumes/Untitled/Documents/Github/push-workspace/docs/api.md.
 
 Live API smoke PASS run 4172f759-0677-4e34-ab61-13f431e3ffd5 against immutable binary .artifacts/runtime/push-api-next; exact binary/script hashes and scope in .artifacts/runtime/smoke.json. Auth, idempotency, evidence, unsupported claims, revision conflict, application isolation, submission draft approval, 4 blueprints, 3 CLI denials, Google flag checked over HTTP. Not complete frontend/native/provider evidence.
+
+Frontend immutable checkpoint .artifacts/frontend-a: production build and 8 tests passed. Real browser at 1672×941, API connected: evidence creation, job/application creation, scoped evidence approval, React/TypeScript analysis and source-excerpt document v1 saved successfully. Approval review currently lacks human-readable payload and was returned to FE for correction. Browser journey continuing; no final visual/accessibility/export pass claimed. Native builder reports 8 Rust checks; independent build/runtime verification pending.
+
+Second immutable backend acb52d8: lead go test -race PASS (1.686s), expanded live smoke PASS 3af5acbc-d64d-405f-8765-5c4ed8ba4a0e including interview evidence, calendar link, cross-currency offer comparison, routine confirmation. Exact hashes in .artifacts/runtime/smoke-b.json. Immutable FE 0414fe0 build/FSD/10 tests PASS, but PDF raster inspection found missing glyphs despite text extraction passing. Returned font embedding defect to builder; no PDF visual pass yet.
