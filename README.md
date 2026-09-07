@@ -4,7 +4,7 @@
 
 | 경로 | 역할 |
 | --- | --- |
-| [push-fe](https://github.com/push-dot/push-fe) | Tauri v2 · React · TypeScript · TipTap · SQLite |
+| [push-fe](https://github.com/push-dot/push-fe) | Tauri v2 · React · ky · Zustand · FSD · TipTap · SQLite |
 | [push-be](https://github.com/push-dot/push-be) | Go · Echo · PostgreSQL API |
 | [docs/plan.md](docs/plan.md) | 제품 계획 및 확정 UI 결정 |
 | [docs/api.md](docs/api.md) | 요청·응답·상태·승인·오류 계약 |

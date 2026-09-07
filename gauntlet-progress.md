@@ -13,15 +13,15 @@ Goal: implement docs/plan.md, replace empty API contract, create private push-do
 
 ## Tasks
 
-1. Fresh domain implementation and server API — in progress; API contract published.
-2. Tauri desktop shell, vertical tabs, home command and company chats without right sidebar — pending.
-3. Vault, analysis, editor, versions and PDF/DOCX — pending.
-4. Pipeline, calendar, interviews and offers — pending.
-5. Four blueprints and approved external CLI execution/evidence verification — pending.
-6. OAuth, Google, AI/BYOK, billing, flagged job adapters — pending.
-7. Release signing/notarization/updater and 20-person private beta — pending; requires actual external credentials and participants.
-8. Integrated acceptance and fresh critic convergence — pending.
-9. Commit units, PRs to develop, squash merge and pin submodules — pending.
+1. Fresh domain implementation and server API — implemented;30 real PostgreSQL tests pass.
+2. Tauri desktop shell and company chats without right sidebar — local execution/visual comparison pass.
+3. Vault, analysis, editor, immutable versions and PDF/DOCX — local API/UI/export checks pass.
+4. Pipeline, calendar, interviews and offers — implemented; company-source and rejection UI/API verification pass.
+5. Four blueprints and approved external CLI execution/evidence verification — local subprocess and provider-boundary checks pass.
+6. OAuth, Google, AI/BYOK, billing, flagged job adapters — implemented; actual external account verification pending readiness.
+7. Release signing/notarization/updater and20-person private beta — local Universal app/DMG ready; external credentials/participants pending.
+8. Integrated acceptance and fresh critic convergence — scoped visual/storage/native/billing checks pass; company research and durable ACK coverage checks pass.
+9. Commit units, PRs to develop, squash merge and pin submodules — PRs created, BE squash merged; FE platformCI and root final integration pending.
 
 ## Repository state
 
@@ -60,3 +60,15 @@ Independent BE/native critic A98b5461 vs Bacb52d8 chose A with blockers: native 
 Root immutable FE4ec3b7e: build/FSD19 unit+export tests PASS,3 actual API tests PASS against both acb52d8 and a68a139 (export/import resume/sync+pins). Light theme at800×700 corrected visually (output/playwright/frontend-d-light-800.png); all tested buttons named, Tab outline2px, 720px settings no horizontal overflow. Embedded DOCX rendered through bundled LibreOffice+licensed font configuration,4pages Korean+links visually readable. Native02730a8 Universal executable independently lipo-verified x86_64 arm64.
 New FE critic A4ec3b7e vsBe1ec421 choseA but actual handler reproduction found document-switch Acontent→Bsave contamination while Bload pending; builder reproduced with realReact component and is repairing. Native critic A02730a8 vsB0219d1e choseA but rejected-start PREPARED retry and directory replacement before spawn remain; builder repairing. No convergence claimed.
 Remote feature checkpoints pushed; BE f7b63f4 GitHub CI PASS34105847763; FE4ec3b7e CI PASS34106321717. PRs deferred until completion per project git rule. Root expandedHTTPsmoke againsta68a139 PASS1f0ef12d-3e25-4a73-9de8-51b7ac0fe538.
+
+Final local checkpoints (2026-09-07): BE29d8efc independently passed28 PostgreSQL race tests/vet/build; actualHTTP smoke bbe3fb74-dc35-4153-a7fe-b2203fea15f4 passed all14 lifecycle checks. BE4d68329 adds sensitive request log sentinel coverage,29 race tests/vet passed. Provider tests use controlled HTTP fixtures, never actual-account claims.
+Billing fresh critic A476ee32 vsBaf1bd0b returned gap:null within refund conservation/equal-second entitlement ordering. Native fresh critic A238a10e vsB02730a8 returned gap:null for durable attempt/recovery/directory identity/actual subprocess scope. Root6b7fe1d adds official singleton deep-link integration and removes unused SQL plugin;25Rust tests/clippy passed. Independent actualsecondprocess exits0 in0.030s, sameGUI restored; --push-run captures actualexit7, replayrejected with unchangedmarker.
+FE iterative critics exposed document-switch contamination, inactive ACK metadata loss, native read-await lostedit, then stale list overwriting sync cache. Fixed d112700/7e18cdc/042d312/95f1625 respectively with real React/TipTap and asynchronous native-storage regression checks. Chat comparison ABE29d8efc/FE6e61110 vsB found versionID lostonopen;777cf1e preserves exactimmutableversion and dirtylatestdraft. Fresh A777cf1e vsB6e61110 check8/8 vs2/8, gap:null within cache/version/draft scope.
+Root visual800px found Sendoutsideviewport. b6d1909 wraps composer controls; actual720px DOM: Send375..418, composer scrollWidth=clientWidth438, tools406; screenshots recorded. FEb6d1909 immutable .artifacts/frontend-g:28tests+FSD+buildPASS;3 realAPI export/sync/operation testsPASS againstBE29d8efc. PDF/DOCX validation checks use actualgeneratedfiles; export lazychunk warning retained, notsilenced.
+Nativeb6d1909 Universal app+DMG buildPASS; mountedread-onlyDMG contains exactsame app, Applications symlink, currentCSS/JS, lipo x86_64+arm64. DMG SHA256 ffc226fdaca48d53d3e9dadc63eb0c8f23b3376abcb0f1762bb8702e4284906e. This is an unsigned/localvalidation artifact, not notarizedrelease. FEPR1 andBEPR1 created todevelop; latestnativeCI/visualcoverage/plancompletioncritics pending beforemerge.
+
+Root source-plan audit found company research permanentlyempty and REJECTEDnormalUI unreachable. API updatedfirst with persistent userprovidedCompanySource provenance; BE5f99281 implements exactsource research andAI snapshots,30PostgreSQL race tests/vet/build independentlyPASS. ExpandedactualHTTPsmoke8661cb5c-4bb5-4e7b-9b7d-850d6fa5b01f passes16checks including companysource persistence andterminalrejection.
+Visual A f833bbb vsB b6d1909 freshcritic returnsgap:null withinreference shell/card/approval/composer scope. Root720px actually reviewed andapproved attachedversion; API finalizedandapproval consumed. Lighttheme720 labelsreadable, allbuttons named, Taboutline2px. Sourcecomparison excludes missing historicalAsidecaptures, andexplicitbrowser-onlyvisualresponses are notactualAI evidence.
+
+Interview companysource audit caught cached→fresh sources deletion;8125709 binds pristine/dirtybaseline. Next critic found PATCHsuccess+GETfailure revertsdisplay;430c20a retainsACK but newcritic found page-remount fallbacktocachedoldrevision.3ae09e4 persistsACK viaexistingaccountcachequeue/localUpdate andremovespage-onlyoverlay. FreshA3ae09e4 vsB430c20a critic6/6vs4/6, gap:null withinACK/remount/realstoragequeue/nextSave+Prepare/accountscope. Root independently reproduced failureon430 andpassedunchanged actualAPI+browser GETabort+twoSave+page-remount checkon3ae; logs .artifacts/interview-ack-remount-{before,after}.log. Userenteredtestnotesonly, no realpersonaldata.
+Root3ae09e4 immutable FE40tests+FSD+buildPASS. Liveplan test exposed equivalentRFC3339 fractionalformat .490Z vs.49Z;9aad318 normalizesboth tosameinstant andusesdeterministictrailing-zero regression, productcode unchanged. ExpandedHTTPsmoke12669053-1124-4828-a299-f5e0b5d76446 PASS16checks. BackendPR1 squash merged d53b69f; gitdiff5f99281..d53b69fempty, branchdeleted. FinalFEPR1/rootintegration andplatformCIpending; no additionalproductgapsremainincompletedboundedreviews.
