@@ -36,3 +36,5 @@ No passing implementation or critic verdict yet. Backend builder first, frontend
 
 2026-09-07 user steering: external VPS/OAuth/Stripe/Apple/beta not prepared; proceed with implementation and local verification. External launch criteria stay explicitly pending, not a reason to stop local work.
 Backend builder agent: /root/backend_builder, owns push-be and docs/api.md. Running actual PostgreSQL on 127.0.0.1:55432/push_test for integration tests.
+
+2026-09-07 user steering: React HTTP MUST use ky; FSD structure with explicitly invoked feature-sliced-design skill. Loaded /Users/cyjoon/.agents/skills/feature-sliced-design/SKILL.md and layer/framework references. FSD v2.1 pages-first, index public APIs, no same-layer slice imports; no speculative layers. Frontend task must enforce this and test request auth/errors/no mutation retries.
