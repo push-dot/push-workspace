@@ -115,13 +115,16 @@ for (const provider of ['CODEX', 'CLAUDE_CODE', 'GROK_BUILD']) {
   }, 409);
 }
 const scheduledAt = new Date(Date.now() + 86400000).toISOString();
+const companySource = { sourceUrl: 'https://company.example.invalid/about', sourceText: '검증 회사는 React와 TypeScript로 서비스를 개발합니다.', accessedAt: new Date().toISOString() };
 const interview = await request('POST', 'interviews', {
-  applicationId: a.application.id, title: `면접 ${tag}`, scheduledAt, durationMinutes: 60, evidenceIds: [evidence.id],
+  applicationId: a.application.id, title: `면접 ${tag}`, scheduledAt, durationMinutes: 60, evidenceIds: [evidence.id], companySources: [companySource],
 }, 201);
 const preparation = await completed(await request('POST', `interviews/${interview.id}/prepare`, {
   expectedRevision: interview.revision, ai: null,
 }, 202));
 assert(preparation.starAnswers.some((answer) => answer.evidenceIds.includes(evidence.id)));
+assert.deepEqual(preparation.research, [{claim: companySource.sourceText, sourceUrl: companySource.sourceUrl, accessedAt: companySource.accessedAt, verificationStatus: 'USER_PROVIDED'}]);
+assert.deepEqual((await request('GET', `interviews/${interview.id}`)).companySources, [companySource]);
 assert.equal((await request('GET', `interviews?applicationId=${b.application.id}`)).length, 0);
 const calendar = await request('GET', `calendar/events?from=${new Date().toISOString()}&to=${new Date(Date.now() + 172800000).toISOString()}&applicationId=${a.application.id}`);
 assert(calendar.some((event) => event.id === interview.eventId));
@@ -139,6 +142,9 @@ const routine = await request('POST', 'routines', {
 await request('PATCH', `routines/${routine.id}`, { expectedRevision: routine.revision, status: 'DONE' }, 409);
 const confirmed = await request('PATCH', `routines/${routine.id}`, { expectedRevision: routine.revision, status: 'CONFIRMED' });
 assert.equal((await request('PATCH', `routines/${routine.id}`, { expectedRevision: confirmed.revision, status: 'DONE' })).status, 'DONE');
+const rejected = await request('PATCH', `applications/${b.application.id}`, {expectedRevision: b.application.revision, stage: 'REJECTED'});
+assert.equal(rejected.stage, 'REJECTED');
+await request('PATCH', `applications/${b.application.id}`, {expectedRevision: rejected.revision, stage: 'PREPARING'}, 409);
 await request('GET', 'jobs', undefined, 401, { anonymous: true });
 await request('POST', 'integrations/google/sync', {}, 403);
-console.log(JSON.stringify({ result: 'PASS', run: tag, checks: ['idempotency', 'evidence-lineage', 'fabrication-blocked', 'revision-conflict', 'two-job-isolation', 'submission-draft-approval', 'four-blueprints', 'three-cli-denials', 'interview-evidence', 'calendar-link', 'currency-comparison', 'routine-confirmation', 'auth-required', 'google-flag'] }));
+console.log(JSON.stringify({ result: 'PASS', run: tag, checks: ['idempotency', 'evidence-lineage', 'fabrication-blocked', 'revision-conflict', 'two-job-isolation', 'submission-draft-approval', 'four-blueprints', 'three-cli-denials', 'interview-evidence', 'company-source-research', 'rejection-record', 'calendar-link', 'currency-comparison', 'routine-confirmation', 'auth-required', 'google-flag'] }));

@@ -311,15 +311,15 @@ native는 runId를 unique key로 한 SQLite 실행 레코드를 트랜잭션에�
 
 ### 면접 `/interviews`
 
-`InterviewSession`: `{id,revision,applicationId,title,scheduledAt,durationMinutes,eventId,evidenceIds,notes,reflection,createdAt,updatedAt}`.
+`InterviewSession`: `{id,revision,applicationId,title,scheduledAt,durationMinutes,eventId,evidenceIds,companySources,notes,reflection,createdAt,updatedAt}`.
 
 - `GET /interviews`: 지원·기간별 목록.
-- `POST /interviews`: `{applicationId,title,scheduledAt,durationMinutes?,evidenceIds:[],notes?}` → InterviewSession과 연결된 내부 일정.
+- `POST /interviews`: `{applicationId,title,scheduledAt,durationMinutes?,evidenceIds:[],companySources?:CompanySource[],notes?}` → InterviewSession과 연결된 내부 일정.
 - `GET /interviews/:id`: 상세.
-- `PATCH /interviews/:id`: `{expectedRevision,title?,scheduledAt?,notes?,reflection?}` → 수정된 세션.
-- `POST /interviews/:id/prepare`: `{expectedRevision,ai:AiOptions|null}` → 202 Operation → `{questions:[{question,requirement,evidenceIds}],starAnswers:[{evidenceIds,situation,task,action,result,needsInput:[]}],research:[{claim,sourceUrl,accessedAt}]}`.
+- `PATCH /interviews/:id`: `{expectedRevision,title?,scheduledAt?,companySources?:CompanySource[],notes?,reflection?}` → 수정된 세션.
+- `POST /interviews/:id/prepare`: `{expectedRevision,ai:AiOptions|null}` → 202 Operation → `{questions:[{question,requirement,evidenceIds}],starAnswers:[{evidenceIds,situation,task,action,result,needsInput:[]}],research:[{claim,sourceUrl,accessedAt,verificationStatus:'USER_PROVIDED'}]}`.
 
-회사 조사에는 출처를 붙인다. 확인하지 않은 회사 사실이나 사용자 경험은 생성하지 않고 추가 입력으로 남긴다. 면접 회고는 해당 지원에만 연결한다.
+`CompanySource`는 `{sourceUrl,sourceText,accessedAt}`이며 사용자가 확인한 회사 자료의 HTTPS URL, 원문(1~20,000자), 조회 시각(RFC3339, 미래 불가)을 최대 10개 보관한다. URL은 출처 링크이며 서버가 자동 조회했다고 표시하지 않는다. 회사 조사 결과는 저장된 원문에서 정확히 발췌하고 출처·조회 시각·USER_PROVIDED 상태를 함께 표시한다. 원문이 없으면 자료 입력을 요청한다. AI 작업도 요청 당시 자료를 고정하며 모델이 만든 회사 사실·URL로 교체하지 않는다. 회사 조사에는 출처를 붙인다. 확인하지 않은 회사 사실이나 사용자 경험은 생성하지 않고 추가 입력으로 남긴다. 면접 회고는 해당 지원에만 연결한다.
 
 ### 오퍼 `/offers`
 
