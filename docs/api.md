@@ -288,7 +288,9 @@ native는 runId를 unique key로 한 SQLite 실행 레코드를 트랜잭션에�
 | POST `/conversations/:id/messages` | `{text,context:{documentId?,versionId?,evidenceIds:[]},ai:AiOptions,accessMode}` | 202 Operation |
 | POST `/conversations/:id/archive` | `{expectedRevision}` | 보관된 대화 |
 
-`Message`: `{id,conversationId,role:'USER'|'ASSISTANT'|'SYSTEM',text,attachments:[{type,id}],operationId,createdAt}`. 첨부 리소스도 소유권과 지원 범위를 확인한다. 응답은 진행 상태·분석 결과·문서 제안·승인 요청을 구조화된 attachment로 포함할 수 있다. 임의 도구 이름이나 shell 명령을 그대로 실행하는 API는 없다.
+`Message`: `{id,conversationId,role:'USER'|'ASSISTANT'|'SYSTEM',text,attachments:MessageAttachment[],operationId,createdAt}`. `MessageAttachment`는 `{type:'DOCUMENT_VERSION',id:string,documentId:string,title:string}` 또는 `{type:'EVIDENCE',id:string,title:string}` 또는 `{type:'APPROVAL',id:string}`이다. id는 각 버전·근거·승인 리소스의 ID이며 서버가 확인한 참조만 포함한다. 첨부 리소스도 소유권과 지원 범위를 확인한다. 응답은 진행 상태·분석 결과·문서 제안·승인 요청을 구조화된 attachment로 포함할 수 있다. 임의 도구 이름이나 shell 명령을 그대로 실행하는 API는 없다.
+
+채팅 context의 문서·버전은 작업을 넣는 시점의 불변 버전으로 고정한다. documentId만 있으면 해당 문서의 최신 버전을 선택하고 버전이 없으면 명확한 입력 오류를 반환한다. versionId만 있으면 소유 문서를 유도한다. 버전의 근거 참조도 해당 지원의 근거 사용 승인을 확인하며, 문서의 미검증 제안 문장을 사실 근거로 승격하지 않는다. 채팅 응답만으로 문서를 변경·확정하거나 승인을 생성·소비하지 않는다. 첨부 카드의 변경 검토·확정은 기존 문서/승인 API와 사용자 동작을 사용한다.
 
 `effort=LOW|MEDIUM|HIGH`; `accessMode=SUGGEST|CONFIRM_ACTIONS`. 이 설정은 개별 승인 게이트를 해제하지 않는다. 고정한 공고·문서는 `/pins`의 `GET`, `POST {resourceType,resourceId}`, `DELETE /:id`로 관리한다. 열린 탭과 임시 입력 상태는 로컬 UI 상태다.
 
