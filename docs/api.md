@@ -58,7 +58,7 @@ Push는 `탐색 → 역량 보완 → 문서 생성 → 지원 → 면접 → �
 | --- | --- |
 | 200 | 조회·수정·명시적 액션 성공 |
 | 201 | 리소스 생성 |
-| 202 | 비동기 작업 접수. `operationId`로 상태 조회 |
+| 202 | 비동기 작업 접수. 응답 data는 Operation이며 `data.id`로 상태 조회 |
 | 204 | 삭제/로그아웃 성공, body 없음 |
 | 400 | `VALIDATION_ERROR` |
 | 401 | `UNAUTHENTICATED`, `TOKEN_EXPIRED` |

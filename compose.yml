@@ -20,7 +20,7 @@ services:
     environment:
       DATABASE_URL: postgres://push:${POSTGRES_PASSWORD}@postgres:5432/push?sslmode=disable
       APP_ENV: production
-      PORT: '8080'
+      LISTEN_ADDR: ':8080'
     depends_on:
       postgres:
         condition: service_healthy
