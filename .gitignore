@@ -4,3 +4,5 @@
 !.env.example
 .worktrees/
 .artifacts/
+output/
+.playwright-cli/

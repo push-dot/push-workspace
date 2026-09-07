@@ -115,7 +115,7 @@ type CareerEvidence = {
   sourceUrl: string | null;
   skills: string[];
   verificationStatus: 'USER_PROVIDED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
-  provenance: { sourceId: string | null; projectEvidenceId: string | null; contentHash: string };
+  provenance: { sourceId: string | null; projectEvidenceId: string | null; contentHash: string; sourceLocation: { start: number; end: number; unit: 'CODE_POINT' } | null };
 };
 ```
 
@@ -143,6 +143,8 @@ type CareerEvidence = {
 | DELETE `/sources/:id` | — | 204. 인용 중이면 409 |
 
 PDF/DOCX/TXT/Markdown, 파일당 최대 20 MiB. 확장자만 믿지 않고 MIME·파일 형식·크기를 검증한다. 원본은 공개 URL로 제공하지 않고 실행하지 않는다. 데스크톱에서 텍스트를 추출한 경우 `text`와 원본 해시를 import에 전달할 수 있다.
+
+수집 근거의 `provenance.sourceLocation`은 보존된 추출 원문의 코드 포인트 구간 `[start,end)`이다. 수동 입력처럼 별도 원문 위치가 없는 경우 null이다. 바이트·UTF-16 인덱스와 혼용하지 않으며 파일 추출 결과 원문과 contentHash를 함께 보존한다.
 
 ## 5. 공고·요구사항 분석 `/jobs`
 
@@ -396,6 +398,8 @@ AI 응답은 제안이다. 모델 출력만으로 사실 검증·문서 확정·
 | POST `/billing/portal` | `{}` | `{url}` |
 | GET `/billing/ledger` | 페이지 | `{id,type,amountMicroCredits,balanceAfter,referenceId,createdAt}` 목록 |
 | POST `/billing/webhook` | Stripe 원문 body + `Stripe-Signature` | `{received:true}` |
+
+`balanceMicroCredits`는 사용 가능한 잔액이며 환불이 이미 예약·사용된 크레딧을 초과하면 음수가 될 수 있다. 음수는 미정산 크레딧 부채를 뜻하며 새 관리형 AI 요청을 허용하지 않는다. 예약 취소·정산으로 잔액이 조정되어도 전체 환불 차감액과 원장 보존 관계를 유지한다.
 
 가격·return URL은 서버 allowlist로 선택한다. 클라이언트가 청구액·사용자 ID·크레딧 지급량을 결정하지 않는다. 웹훅은 raw body HMAC과 5분 timestamp 허용 범위를 검증한다. 이벤트 ID unique 제약, 구독 소유권, 결제 상태를 검증한 뒤 원장과 구독을 원자적으로 갱신한다. 중복·역순 웹훅으로 크레딧을 중복 지급하거나 취소 상태를 되돌리지 않는다. 결제 실패/환불/구독 취소를 반영하고 실제 공급자 확인이 안 되면 완료로 표시하지 않는다.
 
