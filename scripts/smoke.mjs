@@ -115,6 +115,7 @@ for (const provider of ['CODEX', 'CLAUDE_CODE', 'GROK_BUILD']) {
   }, 409);
 }
 const scheduledAt = new Date(Date.now() + 86400000).toISOString();
+const canonicalTime = (value) => ({ ...value, accessedAt: new Date(value.accessedAt).toISOString() });
 const companySource = { sourceUrl: 'https://company.example.invalid/about', sourceText: '검증 회사는 React와 TypeScript로 서비스를 개발합니다.', accessedAt: new Date().toISOString() };
 const interview = await request('POST', 'interviews', {
   applicationId: a.application.id, title: `면접 ${tag}`, scheduledAt, durationMinutes: 60, evidenceIds: [evidence.id], companySources: [companySource],
@@ -123,8 +124,8 @@ const preparation = await completed(await request('POST', `interviews/${intervie
   expectedRevision: interview.revision, ai: null,
 }, 202));
 assert(preparation.starAnswers.some((answer) => answer.evidenceIds.includes(evidence.id)));
-assert.deepEqual(preparation.research, [{claim: companySource.sourceText, sourceUrl: companySource.sourceUrl, accessedAt: companySource.accessedAt, verificationStatus: 'USER_PROVIDED'}]);
-assert.deepEqual((await request('GET', `interviews/${interview.id}`)).companySources, [companySource]);
+assert.deepEqual(preparation.research.map(canonicalTime), [{claim: companySource.sourceText, sourceUrl: companySource.sourceUrl, accessedAt: companySource.accessedAt, verificationStatus: 'USER_PROVIDED'}]);
+assert.deepEqual((await request('GET', `interviews/${interview.id}`)).companySources.map(canonicalTime), [companySource]);
 assert.equal((await request('GET', `interviews?applicationId=${b.application.id}`)).length, 0);
 const calendar = await request('GET', `calendar/events?from=${new Date().toISOString()}&to=${new Date(Date.now() + 172800000).toISOString()}&applicationId=${a.application.id}`);
 assert(calendar.some((event) => event.id === interview.eventId));
