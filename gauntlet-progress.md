@@ -21,7 +21,7 @@ Goal: implement docs/plan.md, replace empty API contract, create private push-do
 6. OAuth, Google, AI/BYOK, billing, flagged job adapters — implemented; actual external account verification pending readiness.
 7. Release signing/notarization/updater and20-person private beta — local Universal app/DMG ready; external credentials/participants pending.
 8. Integrated acceptance and fresh critic convergence — scoped visual/storage/native/billing checks pass; company research and durable ACK coverage checks pass.
-9. Commit units, PRs to develop, squash merge and pin submodules — PRs created, BE squash merged; FE platformCI and root final integration pending.
+9. Commit units, PRs to develop, squash merge and pin submodules — FE/BE squash merged with identical tested trees; final gitlinks pinned, root PR prepared for develop.
 
 ## Repository state
 
@@ -75,3 +75,5 @@ Root3ae09e4 immutable FE40tests+FSD+buildPASS. Liveplan test exposed equivalentR
 
 Finalproduct9aad318 (test-only timestamp normalization over3ae09e4), BE d53b69f. Local40FE tests,4actualAPItests,30BEPostgreSQLrace,25Rust/clippy,16HTTPchecks pass. Actual browser failedGET+twoacknowledgedsaves+remount passeson3ae withsameprobe thatfailed430. Universal9aad318 app/DMG mountedandverifiedbotharchitectures+currentdist; DMGSHA256ef0321521d9ee3f442b1f1f902a949d83965121f0f6952fbcb24de57f778ac71. Evidence /tmp/push-final-universal-9aad318.json.
 Freshprivate clone --recurse-submodules /tmp/push-final-clean.Uk5n0s atrootc1c2296 FE9aad318 BEd53b69f: npmci246packages/no sourceor node_modules symlinks,40FEtests+FSD+build,30BE-race+vet+build pass; allthreeworktreesclean. Fourlivechecks intentionallydisabledthere, independentlypassedbyrootwithactualAPI. RootPR1 created; exactfinalFEplatformCI+merge/pin/rootdevelopintegration pending.
+
+Final FE CI run34110973822 at9aad318: macOS Universal DMG, Windows NSIS, export-tests PASS; both frontendverify andpolicy PASS. FE PR1 squashmerged5bec651f3bb205fadf0bcd3a6a785ad0f20e7e89; gitdiff9aad318..5bec651empty, featurebranchdeleted. BE remainsd53b69fdc88a2912ac208528bb635214e17056fb. Root pins these exactdevelopcommits. All observed movable gaps in completed scoped gauntlet comparisons areclosed; actualexternal rollout criteria remainpending peruserinstruction.

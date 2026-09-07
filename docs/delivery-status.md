@@ -5,7 +5,7 @@
 | 단계 | 상태 | 증거 |
 | --- | --- | --- |
 | API 계약 | 작성 완료 | 원본 workspace `docs/api.md`에 먼저 작성, 구현과 함께 동기화 |
-| 저장소 분리 | 원격 생성·최종 통합 중 | 비공개 `push-dot/push-fe`, `push-dot/push-be`; BE develop 병합 완료, FE 플랫폼 CI와 최종 gitlink 통합 진행 |
+| 저장소 분리 | 완료 | 비공개 `push-dot/push-fe`, `push-dot/push-be`; 각각 develop에 squash 병합하고 검증한 동일 트리를 서브모듈로 고정 |
 | 1. 독립 도메인 신규 구현 | 로컬 검증 통과 | Go·Echo·실제 PostgreSQL, 기존 코드 참조 없이 구현 |
 | 2. 데스크톱 셸 | 로컬 검증 통과 | React·ky·Zustand·FSD; Tauri 실행·단일 인스턴스·창 제어; v6 시각 비교 |
 | 3. 근거·문서·출력 | 로컬 검증 통과 | 근거→분석→버전 확정, 한글 PDF 래스터·DOCX 렌더·링크; 편집/동기화 경합 회귀 검사 |
@@ -16,7 +16,9 @@
 
 ## 검증 범위
 
-검증한 제품 코드: FE `3ae09e4` (최종 테스트 정정 `9aad318`), BE `d53b69f` (검증한 `5f99281`과 동일한 squash 결과). FE 40개 회귀·출력 검사와 별도 실제 API 4개, BE 30개 PostgreSQL race 검사, Rust 25개 검사, 실제 API 스모크 16개 항목이 통과했다.
+검증한 제품 코드: FE `5bec651` (검증한 `9aad318`과 동일한 squash 결과), BE `d53b69f` (검증한 `5f99281`과 동일한 squash 결과). FE 40개 회귀·출력 검사와 별도 실제 API 4개, BE 30개 PostgreSQL race 검사, Rust 25개 검사, 실제 API 스모크 16개 항목이 통과했다.
+
+최종 FE 커밋의 GitHub Actions `34110973822`에서 macOS Universal DMG와 Windows NSIS 빌드 및 출력 검사가 통과했다. Windows 실제 설치·업데이트 실행과 Apple 서명·공증은 별도 검증 대상이다.
 
 상세 항목은 `acceptance.md`, 실행 이력은 `../gauntlet-progress.md`에 기록한다. 실제 API 스모크는 `../scripts/smoke.mjs`로 재현한다. 백엔드 테스트는 실제 PostgreSQL을 사용하며 프런트엔드 테스트는 문서 편집 경합과 실제 출력 파일을 검사한다. 공급자 응답 fixture는 실제 OAuth·결제·유료 AI 계정 사용 성공으로 간주하지 않는다.
 
