@@ -9,7 +9,7 @@ from app.db import ConflictError
 from app.domain import entities as ent
 from app.domain.errors import DomainError
 from app.domain.services.application import ApplicationService
-from tests.stubs import FakeDB, StubApplicationStore, StubJobStore
+from tests.stubs import FakeDB, StubApplicationStore
 
 
 def _now():

@@ -144,7 +144,6 @@ async def test_list_usage():
 
 
 async def test_post_message_ai_completion():
-    from app.domain.services.conversation import ConversationService
     user_id = uuid4()
     conv = _conv(user_id=user_id)
     convs = StubConversationStore(conv=conv)
