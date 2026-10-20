@@ -116,8 +116,8 @@
 | `POST /auth/email/password-reset/confirm` | `token*`, `password*` | 204. 그 사용자의 refresh token을 모두 폐기한다 |
 | `POST /auth/refresh` | `refreshToken*` | Session. refresh token을 새로 바꾼다. 폐기된 토큰을 다시 쓰면 그 사용자의 토큰을 전부 폐기한다. |
 | `POST /auth/logout` | `refreshToken*` | 204 |
-| `DELETE /me` 🔑 | – | 204. Stripe 구독을 바로 해지하고(실패하면 502, 탈퇴하지 않음) 토큰을 모두 폐기한 뒤 `users.deletion_requested_at`을 기록한다. 30일 안에 다시 로그인하면 복구된다. 인앱 결제 구독은 서버가 해지할 수 없으므로 탈퇴 확인 창에서 스토어 해지를 안내한다. 기업 관리자는 다른 담당자에게 관리자를 넘기기 전에는 탈퇴할 수 없다(409 `ADMIN_TRANSFER_REQUIRED`, 담당자가 없으면 회사도 함께 탈퇴 처리). 30일이 지나면 cron이 사용자 행을 지우고 관련 행은 FK cascade로 함께 지워진다(마이그레이션 0018). 유예 중에는 허브 프로필과 소셜 글이 목록·상세에서 빠진다 |
-| `GET /auth/me` | – | `{id, displayName, locale, createdAt}`, ETag |
+| `DELETE /me` 🔑 | – | 204. Stripe 구독을 바로 해지하고(실패하면 502, 탈퇴하지 않음) 토큰을 모두 폐기한 뒤 `users.deletion_requested_at`을 기록한다. 30일 안에 다시 로그인하면 복구된다. 인앱 결제 구독은 서버가 해지할 수 없으므로 탈퇴 확인 창에서 스토어 해지를 안내한다. 기업 관리자는 다른 담당자에게 관리자를 넘기기 전에는 탈퇴할 수 없다(409 `ADMIN_TRANSFER_REQUIRED`, 담당자가 없으면 회사도 함께 탈퇴 처리하고 회사 Stripe 구독을 해지한다). 30일이 지나면 cron이 사용자 행을 지우고 관련 행은 FK cascade로 함께 지워진다(마이그레이션 0018). 유예 중에는 허브 프로필과 소셜 글이 목록·상세에서 빠진다 |
+| `GET /auth/me` | – | `{id, displayName, locale, createdAt, accountType(PERSONAL\|EMPLOYER), companyId, companyRole(ADMIN\|MEMBER)}`, ETag. `companyId`·`companyRole`은 기업이고 회사에 속했을 때만 |
 
 ### 3.3 conversations (gateway 읽기 · core 쓰기 · ai 스트림)
 | 메서드·경로 | 요청 | 응답 |
@@ -363,8 +363,8 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | `GET /me/links` | `kind`(`job\|github\|portfolio\|blog\|other`), page | page Link `{id, kind, url, title, status, fitCount, aiRead, createdAt}`. `status`: 공고는 `READING\|READ`, `fitCount`는 맞춤 횟수 |
 | `POST /me/links` 🔑 · `DELETE /me/links/{id}` | `url*`(자격증명 없는 http(s)), `kind`(생략하면 서버가 주소로 판별), `title`, `aiRead`(GitHub이면 README·커밋을 읽어 둠) | 201 Link / 204. AI 채팅에 붙여넣은 공고 링크는 서버가 `job`으로 저장한다 |
 | `POST /me/devices` 🔑 · `DELETE /me/devices/{token}` | `token*`, `platform*`(`ios\|android`) | 푸시 토큰 등록·해제 |
-| `GET /me/notifications` · `POST /me/notifications/read` 🔑 | page / `ids[]` 또는 `all` | 알림함 목록 `{id, type(DEADLINE\|OFFER\|COMMENT\|AI_DONE), title, body, target, readAt, createdAt}` / 읽음 처리 |
-| `GET` · `PATCH /me/settings` | 알림 스위치 4개, `locale`(`ko\|en`), `profilePublic`, `careerStatusVisibility`(`everyone\|followers\|private`), `hideFromCurrentCompany`, `contactVisibility`, `defaultTone`(`as_is\|professional\|confident\|concise\|technical\|friendly`), `chatRetentionDays`(요금제 한도 안), `allowAiReadMyFiles` | Settings |
+| `GET /me/notifications` · `POST /me/notifications/read` 🔑 | page / `ids[]` 또는 `all` | 알림함 목록 `{id, type(DEADLINE\|OFFER\|COMMENT\|AI_DONE\|APPLICATION_STAGE), title, body, target, readAt, createdAt}` / 읽음 처리 |
+| `GET` · `PATCH /me/settings` | 알림 스위치 5개, `locale`(`ko\|en`), `profilePublic`, `careerStatusVisibility`(`everyone\|followers\|private`), `hideFromCurrentCompany`, `contactVisibility`, `defaultTone`(`as_is\|professional\|confident\|concise\|technical\|friendly`), `allowAiReadMyFiles` | Settings |
 | `POST /users/{userId}/follow` 🔑 · `DELETE` | – | 204. 자기 자신이면 400 |
 | `GET /me/profile` · `PATCH /me/profile` | 섹션 단위 부분 수정: `displayName`, `avatarKey`, `headline`, `jobCategory`, `tenureYears`, `careerStatus`, `openToOffers`, `intro`, `careers[{company, role, startedOn, endedOn, description}]`, `skills[]`, `resumeSourceId`(본인 source만) | Profile |
 | `GET /me/bookmarks` | page | page Posting |
@@ -455,6 +455,7 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | `reference_samples` | `id, source_user_id(on delete cascade), job_category, tenure_years, fit_score, part_scores jsonb, plan check(FREE, PRO, ULTRA), features jsonb, sentence_templates jsonb, created_at` |
 | `user_consents` | `user_id pk, reference_data bool default false, updated_at` |
 | `email_tokens` | `id, user_id, kind check(VERIFY, RESET), token_hash, expires_at, used_at` |
+| (크레딧 원장) | 기존 원장·잔액에 `company_id` 소유 컬럼을 추가한다(기업은 회사 단위 잔액). 사용자·회사 중 하나만 채운다 |
 | `iap_subscriptions` | `id, user_id, platform check(APP_STORE, GOOGLE_PLAY), original_transaction_id unique, product_id, expires_at, status` |
 
 인덱스

@@ -165,13 +165,13 @@ UI는 한국어와 영어를 지원하고, 번역 리소스에는 ja와 vi도 �
 
 - 마이 헤더 오른쪽 위: 제안함(안 읽은 수 배지)과 설정(톱니바퀴) 글래스 버튼. 세 탭 모두 같다.
 - 제안함: 받은 제안 / 보낸 제안. 받은 제안 상태는 새 제안·수락함·거절함, 보낸 제안 상태는 읽지 않음 → 읽음 → 수락함 / 거절함이다. 상세에서 거절 또는 수락하고 답장하기. 수락하면 1:1 메시지로 이어진다. 제안에 공고를 함께 보낼 수 있다.
-- 설정: 계정, 알림(마감 임박·제안·댓글과 답글·AI 작업 완료), 허브 공개(프로필·커리어 상태·연락처), 일반 › 언어(한국어 / English), AI 채팅(기본 말투·대화 기록 보관·내 자료 읽기 허용), 고객센터·약관·로그아웃
+- 설정: 계정, 알림(마감 임박·제안·댓글과 답글·AI 작업 완료·지원 상태 변경), 허브 공개(프로필·커리어 상태·연락처), 일반 › 언어(한국어 / English), AI 채팅(기본 말투·내 자료 읽기 허용), 고객센터·약관·로그아웃
 
 ### 7.11 푸시 알림 (v2) [M]
 - Push 앱의 푸시 알림을 전체 구현한다. iOS(APNs)와 Android(FCM)를 `expo-notifications`로 받는다.
 - 알림 종류는 설정의 스위치 5개와 같다: 마감 임박 공고(북마크 공고 마감 3일 전), 제안 받음, 댓글과 답글, AI 작업 완료(앱을 닫아도 알림), 지원 상태 변경(기업이 내 지원의 단계를 바꿨을 때).
 - 같은 알림이 앱 안 **알림함**(홈 헤더 글래스 버튼)에도 쌓인다.
-- 알림을 누르면 해당 화면으로 바로 간다(공고 상세, 제안 상세, 게시물 상세, AI 채팅 대화).
+- 알림을 누르면 해당 화면으로 바로 간다(공고 상세, 제안 상세, 게시물 상세, AI 채팅 대화, 마이 › 내 활동 › 지원활동).
 - 설정에서 종류별로 끌 수 있다. 처음 실행 시 OS 알림 권한을 요청한다.
 
 ### 7.12 승인 체계 [공통]
@@ -340,7 +340,7 @@ API 영역은 `/auth`, `/conversations`, `/approvals`, `/operations`, `/jobs`, `
 API와 테이블 초안은 [api-spec.md](api-spec.md) 4–5장에 있다. 아래 항목은 바뀔 수 있다.
 
 - 마이그레이션 `db/migrations/0016_recruiting.sql`
-  - 테이블: `job_postings`, `users.is_employer`, `profiles`, `bookmarks`, `follows`, `offers`, `offer_messages`, `user_links`, `posts`, `post_comments`
+  - 테이블: `job_postings`, `users.is_employer`, `profiles`, `bookmarks`, `follows`, `offers`, `offer_messages`, `user_links`, `posts`, `post_comments`, 그리고 fo-web 기업용 `companies`, `company_members`, `company_invites`, `application_snapshots`, `reference_samples`, `user_consents`([api-spec.md](api-spec.md) 5장)
   - `pg_trgm` 인덱스
 - 코드 위치: `services/core-api/src/routes/recruiting.ts`. 기존 `routes/jobs.ts` 패턴을 따른다.
   - 등록은 `handler.ts`의 dispatch와 gateway `owner.ts`의 `isCore`에 경로를 추가하는 것으로 끝낸다.
@@ -350,7 +350,7 @@ API와 테이블 초안은 [api-spec.md](api-spec.md) 4–5장에 있다. 아래
 - 테스트: `services/core-api/test/recruiting.test.ts`. `deps.query` fake를 쓰고 다음을 확인한다.
   - 필터가 SQL 파라미터로 맞게 바뀐다.
   - 북마크를 두 번 해도 결과가 같다.
-  - 기업 회원이 아니면 `POST /postings`가 403이다.
+  - 사업자 확인을 통과한 회사의 담당자가 아니면 `POST /postings`가 403이다.
   - 자기 자신 팔로우는 거부된다.
   - 잘못된 카테고리는 422다.
 
