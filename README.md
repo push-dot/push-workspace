@@ -4,10 +4,6 @@
   <strong>근거 기반 커리어 작업공간 — 채용 공고를 넣으면 이력서·포트폴리오·자기소개서까지 단계별 게이트를 거쳐 만들어주는 AI 워크플로</strong>
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/06-final.png" alt="Push 최종 응답 화면" width="800">
-</p>
-
 ---
 
 **Push**는 이력서를 "한 번에 생성"하지 않는다. 커리어 근거(이력서, GitHub, 프로젝트 기록)를 수집하고, 채용 공고를 분석하고, Fit score와 작성 전략을 세운 뒤, 단계마다 사람의 승인을 거쳐 최종 문서까지 만든다. AI가 만든 문장은 전부 사용자가 올린 근거에서 나온다.
@@ -30,19 +26,6 @@
 - **문서화** — 생성물을 `내 서류` 문서로 자동 동기화, TipTap 편집, PDF/DOCX보내기
 - **지원 관리** — 공고 URL 감지 시 JobPosting + Application 자동 생성, 대화와 링크
 - **커리어 볼트, 면접 준비, 프로젝트 기획서** — 이력서 외 산출물도 같은 근거에서 생성
-
-## 스크린샷
-
-가상 인물(김도연) 이력서로 실제 웹 UI에서 이력서 생성 전체 흐름을 돌린 화면. 나머지 화면은 [docs/screenshots](docs/screenshots/)에 있다.
-
-| | |
-| --- | --- |
-| ![홈 컴포저](docs/screenshots/02-composer.png) | ![Fit score 게이트](docs/screenshots/04-gate-2-fit-score.png) |
-| 홈 컴포저 · 공고 URL + 이력서 첨부 | Phase 게이트 · Fit score 확인 후 진행 |
-| ![이탈 후 복귀](docs/screenshots/05-nav-back.png) | ![문서 편집기](docs/screenshots/08-doc-editor.png) |
-| 페이지 이탈 후 복귀 · 스트림 자동 재연결 | 문서 편집기 · PDF/DOCX보내기 |
-| ![지원 관리](docs/screenshots/10-applications.png) | ![캘린더](docs/screenshots/15-calendar-events.png) |
-| 지원 관리 · 공고 URL로 자동 생성 | 캘린더 · Google 동기화 |
 
 ## 아키텍처
 
