@@ -7,7 +7,7 @@ web:
 	npm --prefix push-fe run dev
 
 desktop:
-	cd push-fe && cargo tauri dev
+	cd push-fe/apps/fo-desktop && pnpm tauri dev
 
 test:
 	cd push-be && python -m pytest

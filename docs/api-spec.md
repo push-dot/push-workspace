@@ -108,6 +108,7 @@
 | `POST /auth/exchange` | `code*`, `codeVerifier*` | `Session{accessToken, refreshToken, expiresIn, user}` |
 | `POST /auth/refresh` | `refreshToken*` | Session. refresh token을 새로 바꾼다. 폐기된 토큰을 다시 쓰면 그 사용자의 토큰을 전부 폐기한다. |
 | `POST /auth/logout` | `refreshToken*` | 204 |
+| `DELETE /me` 🔑 | – | 204. Stripe 구독을 바로 해지하고(실패하면 502, 탈퇴하지 않음) 토큰을 모두 폐기한 뒤 `users.deletion_requested_at`을 기록한다. 30일 안에 OAuth로 다시 로그인하면 복구된다. 30일이 지나면 cron이 사용자 행을 지우고 관련 행은 FK cascade로 함께 지워진다(마이그레이션 0018). 유예 중에는 허브 프로필과 소셜 글이 목록·상세에서 빠진다 |
 | `GET /auth/me` | – | `{id, displayName, locale, createdAt}`, ETag |
 
 ### 3.3 conversations (gateway 읽기 · core 쓰기 · ai 스트림)
