@@ -17,7 +17,7 @@ push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 │  ├─ apps/fo-mobile     🆕 iOS·Android 앱 (Expo)
 │  └─ packages/
 │     ├─ design-system   vanilla-extract + Mantine (웹·데스크톱)
-│     └─ api-client      🆕 fetch 기반 타입·엔드포인트·SSE 파서 (웹·RN 공용)
+│     └─ api-client      🆕 ky 기반 타입·엔드포인트·SSE 파서 (웹·RN 공용)
 └─ push-be               서비스 모노레포 (npm workspaces + Python)
    ├─ services/gateway   TS Worker `push-be`
    ├─ services/core-api  TS Worker `push-be-core`
