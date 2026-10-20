@@ -8,7 +8,7 @@
 
 ## 1. 범위와 구성
 
-- 클라이언트는 데스크톱(Tauri), 모바일(Expo), fo-web(WebView)이고 모두 같은 API를 쓴다.
+- 클라이언트는 데스크톱(Tauri), 모바일(Expo), fo-web(기업·구직자 웹, 일부 화면은 앱 WebView)이고 모두 같은 API를 쓴다.
 - 요청은 gateway Worker가 먼저 받아 아래처럼 나눈다.
 
 | 담당 | 위치 | 처리하는 요청 |
@@ -284,38 +284,57 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 
 ## 4. 🆕 v2 엔드포인트 (미확정 설계안)
 
-### 4.1 공고 검색 (내 공고 + 기업 공고)
+### 4.1 공고 검색
+
+기업 공고(`job_postings`, 마감되지 않은 것)를 찾는다. 모바일에는 공고 추가 화면과 출처 필터가 없다. 모바일 내 공고는 AI 채팅에 붙여넣은 링크·본문으로 만든다(`jobs`, `sourceKind: URL|TEXT`). 내 공고(`jobs`)를 이 목록에 넣을지는 미결이다([PRD.md](PRD.md) 16장).
 
 #### `GET /postings`
 | 쿼리 | 값 |
 |---|---|
-| `q` | 제목과 회사에서 부분 일치로 찾는다(`pg_trgm`). |
-| `kind` | `all`(기본) · `mine`(`jobs`, 본인) · `posted`(`job_postings`, 마감되지 않은 것) |
-| `category` | 직군 키. 쉼표로 여러 개를 줄 수 있다. |
-| `careerYears` | `0` · `1-3` · `4-6` · `7+` |
-| `location` | 문자열 |
-| `employmentType` | `full_time` · `contract` · `intern` · `part_time` |
+| `q` | 제목과 회사에서 찾는다. 일반 부분 일치(`pg_trgm`)에 더해 초성("ㅁㅇㅍㅇ"), 입력 중인 자모("백ㅇ"), 영타("ahdkvpdl")도 받는다. 규칙은 feature-spec 0.1 |
+| `category` | 직군 키(개발 · 데이터 · 디자인 · 기획 · 마케팅 · 영업 · 인사 · 경영지원, 8개). 쉼표로 여러 개를 줄 수 있다. |
+| `skills` | 기술 이름. 쉼표로 여러 개를 줄 수 있다. |
+| `careerYears` | `0`(신입) · `1-3` · `4-6` · `7-9` · `10+`. 쉼표로 여러 개를 줄 수 있다. |
+| `location` | `시·도`, `시·도 구` 또는 `원격`. 쉼표로 여러 개를 줄 수 있다. |
+| `employmentType` | `full_time`(정규직) · `contract`(계약직) · `intern`(인턴) · `freelance`(프리랜서) · `dispatch`(파견). 쉼표로 여러 개를 줄 수 있다. |
 | `limit`, `cursor` | page |
 
 ```json
-{"data":[{"kind":"posted","id":"uuid","company":"","title":"","jobCategory":"dev",
-  "careerMin":3,"careerMax":null,"location":"서울","employmentType":"full_time",
+{"data":[{"id":"uuid","company":"","title":"","jobCategory":"dev","imageUrl":"https://...",
+  "skills":["Kotlin"],"careerMin":3,"careerMax":null,"location":"서울 강남구","employmentType":"full_time",
   "deadline":"2026-11-30","bookmarked":false,"applied":false,"sourceUrl":null,"createdAt":"..."}],
- "page":{"nextCursor":"...","hasMore":true}}
+ "page":{"nextCursor":"...","hasMore":true,"total":128}}
 ```
 
-#### `GET /postings/{kind}/{id}`
-목록 항목에 `description`과 `requirements[]`를 더해 돌려준다. `kind=mine`이면 본인 것만 볼 수 있고, 아니면 404다.
+`page.total`은 필터를 적용한 전체 개수다("공고 N개", 시트의 "공고 N개 보기").
+
+#### `GET /postings/locations`
+`GET /postings`와 같은 필터 쿼리를 받아 지역별 공고 수를 돌려준다(`[{location, count}]`). 지역 시트 2단계의 구별 개수에 쓴다.
+
+#### `GET /postings/{id}`
+목록 항목에 `description`, `requirements[]`, 근무 조건 `workConditions`를 더해 돌려준다. fo-web `/postings/:id`와 같은 ID를 쓴다. `sourceUrl`은 "원문 보기" 링크다.
 
 #### `POST /postings` 🔑
 기업 공고를 만든다. `users.is_employer`가 아니면 403 `FORBIDDEN`이다.
-요청 본문: `title*`(1–300), `jobCategory*`, `careerMin*`, `careerMax`, `location*`, `employmentType*`, `description*`(1–50000), `deadline`
+요청 본문: `title*`(1–300), `jobCategory*`, `careerMin*`, `careerMax`, `location*`, `employmentType*`, `description*`(1–50000), `skills[]`, `imageKey`(대표 이미지, `POST /uploads/images`로 받은 key), `deadline`
 
-#### `POST /postings/posted/{id}/bookmark` 🔑 · `DELETE` 같은 경로
+#### `POST /postings/{id}/bookmark` 🔑 · `DELETE` 같은 경로
 같은 요청을 반복해도 결과가 같다. 응답은 204다.
 
-#### `POST /postings/posted/{id}/apply` 🔑
+#### `POST /postings/{id}/apply` 🔑
+요청 본문: `documentIds[]`(제출할 내 서류, 본인 것만)
 기업 공고를 본인 `jobs`에 복사하고(`sourceKind: TEXT`) application을 만든다. 이미 지원했으면 기존 application을 돌려준다. 응답은 201 Application이다.
+
+### 4.1.1 통합 검색
+
+#### `GET /search`
+| 쿼리 | 값 |
+|---|---|
+| `q*` | 검색어 |
+| `type` | `postings` · `people` · `posts` |
+| `limit`, `cursor` | page |
+
+`type`에 따라 page Posting, page Profile, page Post를 관련도순으로 돌려준다. 홈·허브·소셜 검색이 함께 쓴다.
 
 ### 4.2 허브
 
@@ -324,17 +343,23 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | `GET /profiles` | `q`, `category`(쉼표), `tenure`(`0-2\|3-5\|6-9\|10+`), `status`(`satisfied\|seeking\|feedback`), `explore`(`recommended\|offers`), page | page Profile |
 | `GET /profiles/{userId}` | – | Profile + `following`, `offered` |
 | `POST /profiles/{userId}/offer` 🔑 | `message*`(1–500), `postingId`(함께 보낼 공고) | 201. 다시 보내면 409 `CONFLICT`, 자기 자신에게 보내면 400 |
-| `GET /me/offers?box=received\|sent` | page | page Offer `{id, sender, recipient, message, posting, status(NEW\|ACCEPTED\|DECLINED), readAt, createdAt}` |
-| `GET /me/offers/{id}` | – | Offer. 받은 제안이면 읽음 처리 |
-| `POST /me/offers/{id}/accept` 🔑 · `POST /me/offers/{id}/decline` 🔑 | 수락 시 `reply`(선택) | Offer |
+| `GET /me/offers?box=received\|sent` | page | page Offer `{id, sender, recipient, message, posting, status(SENT\|READ\|ACCEPTED\|DECLINED), readAt, createdAt}`. 받은 제안의 "새 제안"은 `SENT`다. 보낸 제안은 `SENT`(읽지 않음) → `READ`(읽음) → `ACCEPTED`(수락함) / `DECLINED`(거절함)로 보인다 |
+| `GET /me/offers/{id}` | – | Offer. 받은 제안이면 `READ`로 바꾸고 `readAt`을 채운다 |
+| `POST /me/offers/{id}/accept` 🔑 · `POST /me/offers/{id}/decline` 🔑 | 수락 시 `reply`(선택, 1:1 메시지의 첫 메시지가 된다) | Offer |
+| `GET /me/offers/{id}/messages` | page | page OfferMessage `{id, offerId, sender, body, createdAt}`. 보낸 사람과 받은 사람만 볼 수 있다 |
+| `POST /me/offers/{id}/messages` 🔑 | `body*` | 201 OfferMessage. `ACCEPTED`가 아니면 409 `CONFLICT` |
+| `GET /me/links` | `kind`(`job\|github\|portfolio\|blog\|other`), page | page Link `{id, kind, url, title, status, fitCount, aiRead, createdAt}`. `status`: 공고는 `READING\|READ`, `fitCount`는 맞춤 횟수 |
+| `POST /me/links` 🔑 · `DELETE /me/links/{id}` | `url*`(자격증명 없는 http(s)), `kind`(생략하면 서버가 주소로 판별), `title`, `aiRead`(GitHub이면 README·커밋을 읽어 둠) | 201 Link / 204. AI 채팅에 붙여넣은 공고 링크는 서버가 `job`으로 저장한다 |
 | `POST /me/devices` 🔑 · `DELETE /me/devices/{token}` | `token*`, `platform*`(`ios\|android`) | 푸시 토큰 등록·해제 |
 | `GET /me/notifications` · `POST /me/notifications/read` 🔑 | page / `ids[]` 또는 `all` | 알림함 목록 `{id, type(DEADLINE\|OFFER\|COMMENT\|AI_DONE), title, body, target, readAt, createdAt}` / 읽음 처리 |
-| `GET` · `PATCH /me/settings` | 알림 스위치 4개, `profilePublic`, `careerStatusVisibility`, `contactVisibility`, `defaultTone`, `chatRetentionDays`, `allowAiReadMyFiles` | Settings |
+| `GET` · `PATCH /me/settings` | 알림 스위치 4개, `locale`(`ko\|en`), `profilePublic`, `careerStatusVisibility`(`everyone\|followers\|private`), `hideFromCurrentCompany`, `contactVisibility`, `defaultTone`(`as_is\|professional\|confident\|concise\|technical\|friendly`), `chatRetentionDays`(요금제 한도 안), `allowAiReadMyFiles` | Settings |
 | `POST /users/{userId}/follow` 🔑 · `DELETE` | – | 204. 자기 자신이면 400 |
 | `GET /me/profile` · `PATCH /me/profile` | 섹션 단위 부분 수정: `displayName`, `avatarKey`, `headline`, `jobCategory`, `tenureYears`, `careerStatus`, `openToOffers`, `intro`, `careers[{company, role, startedOn, endedOn, description}]`, `skills[]`, `resumeSourceId`(본인 source만) | Profile |
 | `GET /me/bookmarks` | page | page Posting |
-| `GET /me/follows` | page | page Profile |
+| `GET /me/follows` | page | page Profile (팔로잉) |
+| `GET /me/followers` | page | page Profile (팔로워) |
 | `GET /me/posts` | page | page Post (내가 쓴 게시물) |
+| `GET /me/commented-posts` | page | page Post (댓글 단 게시물) |
 
 `Profile`: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, careerStatus, openToOffers, intro, careers[], skills[], followerCount, resumeSourceId, updatedAt}`
 
@@ -348,7 +373,7 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | `GET /posts/{id}/comments` | page | page `{id, author, body, createdAt}` |
 | `POST /posts/{id}/comments` 🔑 | `body*`(1–1000) | 201 |
 
-`Post`: `{id, author:{id, displayName}, category, title, body, imageUrls[], commentCount, createdAt}`
+`Post`: `{id, author:{id, displayName}, category, title, body, imageUrls[], commentCount, viewCount, createdAt}`
 
 ### 4.4 이미지 업로드 (ai)
 `POST /uploads/images` 🔑 · multipart `file*`(jpeg/png/webp/heic, ≤10MiB) → 201 `{key, url}`
@@ -357,7 +382,7 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 
 ### 4.5 라우팅 등록
 - core `handler.ts`의 `dispatch`에 경로를 추가하고, gateway `routes/owner.ts`의 `isCore`에도 추가한다.
-  - `/postings*`, `/profiles*`, `/users/*/follow`, `/me/*`, `/posts*`
+  - `/postings*`, `/search`, `/profiles*`, `/users/*/follow`, `/me/*`, `/posts*`
 - `/uploads/images`는 ai가 처리하므로 기본값(python) 그대로 둔다.
 
 ## 5. 🆕 DB 변경 (미확정 설계안, `db/migrations/0016_recruiting.sql`)
@@ -365,16 +390,19 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | 테이블 | 주요 컬럼 |
 |---|---|
 | `users` | `is_employer bool default false` 추가 |
-| `job_postings` | `id, company_user_id, company, title, job_category, career_min, career_max, location, employment_type, description, requirements jsonb, deadline, closed_at, created_at` |
+| `job_postings` | `id, company_user_id, company, title, job_category, career_min, career_max, location, employment_type, description, requirements jsonb, work_conditions jsonb, skills jsonb, image_key, deadline, closed_at, created_at` |
 | `profiles` | `user_id pk, headline, job_category, tenure_years, career_status check(...), open_to_offers, intro, careers jsonb, skills jsonb, avatar_key, resume_source_id, created_at, updated_at` |
 | `bookmarks` | `(user_id, posting_id) pk, created_at` |
 | `follows` | `(follower_id, followee_id) pk, check(follower_id <> followee_id)` |
-| `offers` | `id, sender_id, profile_user_id, message, created_at, unique(sender_id, profile_user_id)` |
-| `posts` | `id, user_id, category check(...), title, body, image_keys jsonb, created_at` |
+| `offers` | `id, sender_id, profile_user_id, message, posting_id, status check(SENT, READ, ACCEPTED, DECLINED), read_at, created_at, unique(sender_id, profile_user_id)` |
+| `offer_messages` | `id, offer_id, sender_id, body, created_at` |
+| `user_links` | `id, user_id, type check(posting, profile), url, title, created_at` |
+| `posts` | `id, user_id, category check(...), title, body, image_keys jsonb, view_count, created_at` |
 | `post_comments` | `id, post_id, user_id, body, created_at` |
 
 인덱스
 - `pg_trgm`: `job_postings(title, company)`, `jobs(title, company)`
+- 검색용 파생 컬럼: `search_choseong`, `search_jamo` (저장할 때 core-api가 `es-hangul`의 `getChoseong`·`disassemble`로 채운다). 대상: `job_postings`, `jobs`, `profiles`(이름·헤드라인·기술), `posts`(제목·본문). 영타 입력은 검색 전에 `convertQwertyToHangul`로 바꿔서 함께 찾는다
 - 목록 정렬용 `(…, created_at desc, id desc)`
 
 마이그레이션은 배포에 포함되지 않는다. 운영 DB에는 수동으로 적용한다.
@@ -385,4 +413,8 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 - ai의 `routers/auth.py`, `billing.py`, `calendar.py`는 연결되어 있지 않다. 이 경로들은 core가 처리한다.
 - `POST /ai/keys/{provider}/test`는 스텁이다.
 - 문서 템플릿 enum은 `CLASSIC | MODERN | COMPACT`인데, 디자인은 심플·모던·크리에이티브·ATS 4종이다. 바꿔야 한다.
-- 공고별 적합도(홈 배지, 공고 상세 카드)와 "이번 주 많이 본 공고"용 API가 없다.
+- 공고별 적합도(공고 상세에 들어갈 때 고른 서류 기준으로 자동 계산)와 "이번 주 많이 본 공고"용 API가 없다.
+- 캘린더 이벤트 유형에 커피챗(`COFFEE_CHAT`)이 없다. 추가해야 한다.
+- 대화는 보관(`archive`)만 있다. 모바일 ⋯ 메뉴의 대화 공유·삭제 API가 없다.
+- 최근 검색어(모두 지우기 포함), 많이 찾는 검색어(1–8위), 많이 찾는 기술용 API가 없다.
+- `POST /billing/checkout`은 월간/연간을 고르지 못한다. 크레딧 추가 구매("충전"), 요금제 낮추기, 매월 1일 크레딧 충전, 요금제별 기능 제한(대화 기록 보관 기간, 내보내기, 프로젝트)도 없다. 요금제 크레딧(월 300 / 5,000 / 20,000)을 마이크로크레딧 단위와 맞추는 일은 미결이다.
