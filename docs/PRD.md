@@ -307,7 +307,7 @@ API와 테이블 초안은 [api-spec.md](api-spec.md) 4–5장에 있다. 아래
 
 ### 13.3 3단계: `packages/api-client` + fo-web — 확정
 
-- `@push/api-client`: fetch 기반이라 웹과 RN에서 함께 쓴다.
+- `@push/api-client`: ky 기반이라 웹과 RN에서 함께 쓴다(RN은 `expo/fetch`를 ky의 fetch로 넘겨 스트림을 읽는다).
   - `createClient({baseUrl, getToken, fetch})`: Bearer와 Idempotency-Key를 자동으로 붙인다.
   - 타입, 엔드포인트 함수, 카테고리 한국어 라벨
   - `sse.ts`의 `parseFrames`: 데스크톱 채팅 코드에서 옮겨 오고 vitest를 붙인다.
@@ -421,7 +421,6 @@ Route 파일은 얇게 두고, 플랫폼별 분리는 `src/screens/`에서 한�
 - 로컬에서 쓸 Neon HTTP 프록시 이미지
 - fo-web의 운영 도메인과 CORS 허용 목록. 지금은 `tauri://localhost`와 localhost만 허용한다.
 - 설정의 AI 채팅 항목(기본 말투, 대화 기록 보관, 내 자료 읽기 허용)과 계정 모달의 대화 설정이 겹친다. 어디에 둘지 정해야 한다.
-- 모바일에 회원 탈퇴가 없다. 스토어 정책상 필요할 수 있다.
 - 모바일 결제를 인앱 결제(IAP)로 할지 Stripe 웹으로 보낼지
 - 데스크톱 "+ 공고 추가"(내 공고)를 유지할지, 홈과 검색에서 내 공고를 어떻게 다룰지
 - "마감 임박 공고" 섹션의 기준(전체 공고 / 북마크 공고)
