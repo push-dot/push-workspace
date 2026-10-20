@@ -13,7 +13,7 @@
 push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 ├─ push-fe               pnpm 11 + turbo 모노레포
 │  ├─ apps/fo-desktop    데스크톱 앱 (Tauri). 현재 루트에 있는 앱을 옮긴다.
-│  ├─ apps/fo-web        🆕 WebView 상세 페이지
+│  ├─ apps/fo-web        🆕 기업·구직자 웹 (상세 페이지는 앱 WebView에도 사용)
 │  ├─ apps/fo-mobile     🆕 iOS·Android 앱 (Expo)
 │  └─ packages/
 │     ├─ design-system   vanilla-extract + Mantine (웹·데스크톱)
@@ -60,10 +60,21 @@ push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 | 푸시 알림 | `expo-notifications` (APNs, FCM), 딥링크로 화면 이동 |
 | 인증 | `expo-web-browser` (`openAuthSessionAsync`), `expo-crypto` (PKCE) |
 | 파일·이미지 | `expo-document-picker`, `expo-image-picker`, `expo-image` |
+| 한글 검색 | `es-hangul` 2.4 (토스). 초성(`getChoseong`), 자모(`disassemble`), 영타 변환(`convertQwertyToHangul`) |
 | 스트리밍 | `expo/fetch` (`ReadableStream`) |
 | 플랫폼 분기 | `{name}.ios.tsx` / `{name}.android.tsx` |
 
-### 2.4 fo-web 🆕
+### 2.4 디자인 시스템 (모바일) 🆕
+기준은 Claude Design "Push 디자인 시스템" 아티팩트다. 자세한 내용은 [feature-spec.md](feature-spec.md) 13장에 있다.
+
+| 영역 | 내용 |
+|---|---|
+| 문구 | "~요" 존댓말, 버튼은 결과를 말하는 동사, 숫자 우선 |
+| 토큰 | 색 22개(라이트·다크), 글자 h1–c2, 간격 6단계, 모서리 6단계, 그림자 2개 |
+| 컴포넌트 | 15개. 기본 10개(버튼, 글래스 버튼, 칩, 배지, 세그먼트, 스위치, 입력창, 설정 그룹, 바텀 시트, 공고 카드), AI 채팅 5개(빠른 시작 알약, 입력창, 작업 상태 줄, 도구 줄, 승인 패널) |
+| 아이콘 | 선 아이콘 38개, 3D 아이콘 13개(SVG 자리 표시). 로고 파일과 최종 3D 렌더는 아직 없다 |
+
+### 2.5 fo-web 🆕
 Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. 데스크톱(5173)과 겹치지 않게 포트 5174를 쓰고, 에뮬레이터에서 접속할 수 있게 `host: true`로 띄운다.
 
 ## 3. 백엔드
@@ -85,7 +96,7 @@ Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. �
 
 | 영역 | 선택 |
 |---|---|
-| DB | PostgreSQL 16 + pgvector, 🆕 `pg_trgm` |
+| DB | PostgreSQL 16 + pgvector, 🆕 `pg_trgm` (검색용 초성·자모 컬럼은 `es-hangul`로 만든다) |
 | 운영 DB | Neon (Direct 호스트, `sslmode=require`) |
 | 마이그레이션 | `db/migrations/NNNN_*.sql`. 운영은 수동 실행(Actions "Migrate database") |
 | 파일 | 로컬: 디스크(`./data/sources`). Workers: `sources.content`. 🆕 이미지는 로컬 디스크를 쓰고 배포할 때 R2로 바꾼다. |
@@ -102,10 +113,10 @@ Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. �
 
 ## 6. 선택 이유
 
-- **디자인 기준**: Claude Design 세션 "Push 채용 앱 모바일 UI 디자인" 캔버스. 토스·당근·원티드 느낌 + iOS 글래스, 포인트 색 `#5B4CF0`.
+- **디자인 기준**: Claude Design 세션 "Push 채용 앱 모바일 UI 디자인" 캔버스와 "Push 디자인 시스템" 아티팩트. 토스·당근·원티드 느낌 + iOS 글래스, 포인트 색 `#5B4CF0`. 필터는 iOS에서도 바텀 시트다.
 - **NativeTabs와 Stack**: 탭 바, 헤더, 검색창, 툴바가 시스템 컴포넌트로 그려진다. iOS 26 글래스를 직접 만들지 않아도 된다.
 - **`@expo/ui`**: 입력창과 칩을 SwiftUI와 Compose로 그려서 각 플랫폼 기본 모양을 얻는다.
-- **fo-web WebView**: 공고 상세와 프로필 상세를 웹에서도 같은 화면으로 쓴다. 외부 사이트는 WebView로 열지 않는다.
+- **fo-web**: 기업과 구직자가 함께 쓰는 웹이다. 공고 상세와 프로필 상세는 앱 WebView에서도 같은 화면으로 쓴다. 외부 사이트는 WebView로 열지 않는다.
 - **v2 CRUD는 core-api(TS)**: 저장소가 이미 AI가 아닌 경로를 TS로 옮기는 중이다.
 - **Playwright는 서버에서만**: 휴대폰에서는 브라우저 자동화를 돌릴 수 없다. 사용자가 준 링크 하나만 읽고 그 사용자 데이터로만 쓴다.
 - **AI만 VPS로**: Workers Python은 CPU 10ms 제한, Browser Rendering 하루 10분 한도, 스트리밍 제약이 있다. 읽기와 CRUD는 Workers에 그대로 둔다.
