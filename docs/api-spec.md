@@ -34,6 +34,9 @@
 - 공개 경로
   - `GET /auth/{provider}/start|callback`
   - `POST /auth/exchange|refresh|logout`
+  - `POST /auth/email/signup|verify|login|password-reset|password-reset/confirm` (v2 미확정)
+  - `GET /postings`, `GET /postings/locations`, `GET /postings/{id}`: 토큰이 없으면 `bookmarked`·`applied`는 `false`다. `GET /search`는 토큰이 없으면 공고 탭 결과만 준다. (v2 미확정)
+  - `POST /billing/webhook/app-store`, `POST /billing/webhook/google-play` (v2 미확정)
   - `POST /billing/webhook`
   - `GET /integrations/google/callback`
   - `/healthz`
@@ -100,16 +103,21 @@
 | `GET /healthz` | 공개, 속도 제한 없음 → `{status:"ok"}` |
 | `GET /api/v1/healthz` | 공개, IP당 분당 60회 |
 
-### 3.2 auth (core, `GET /auth/me`만 gateway)
+### 3.2 auth (core, `GET /auth/me`만 gateway, 이메일 가입은 v2 미확정)
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
-| `GET /auth/{google\|github}/start` | `codeChallengeMethod*`=S256, `codeChallenge*`, `redirectUri*` (`push://auth/callback` 또는 `http://localhost:5173/auth/callback`) | `{authorizationUrl, state, expiresAt}` |
+| `GET /auth/{google\|github}/start` | `codeChallengeMethod*`=S256, `codeChallenge*`, `redirectUri*` (`push://auth/callback` 또는 `http://localhost:5173/auth/callback`), `accountType`(`PERSONAL\|EMPLOYER`, 기본 `PERSONAL`) | `{authorizationUrl, state, expiresAt}`. GitHub에 `EMPLOYER`면 400 `VALIDATION_ERROR` |
 | `GET /auth/{provider}/callback` | `code`, `state` | 302 → `{finalUri}?code=` |
-| `POST /auth/exchange` | `code*`, `codeVerifier*` | `Session{accessToken, refreshToken, expiresIn, user}` |
+| `POST /auth/exchange` | `code*`, `codeVerifier*` | `Session{accessToken, refreshToken, expiresIn, user}`. 제공사 이메일이 인증되지 않았으면 400 `EMAIL_NOT_VERIFIED`(GitHub은 `verified`인 기본 이메일만). 이메일이 다른 계정 종류로 이미 있으면 409 `EMAIL_TAKEN`(`details.accountType`) |
+| `POST /auth/email/signup` | `email*`, `password*`(8–128), `accountType*`(`PERSONAL\|EMPLOYER`), `displayName*`, `consentReference`(bool) | 202. 인증 메일을 보낸다. 이메일이 이미 있으면 409 `EMAIL_TAKEN`(`details.accountType`) |
+| `POST /auth/email/verify` | `token*` | Session. 이때 계정이 생긴다 |
+| `POST /auth/email/login` | `email*`, `password*` | Session. 인증 전이면 403 `EMAIL_NOT_VERIFIED`, 틀리면 401 `INVALID_CREDENTIALS` |
+| `POST /auth/email/password-reset` | `email*` | 202 (이메일 존재 여부를 드러내지 않는다) |
+| `POST /auth/email/password-reset/confirm` | `token*`, `password*` | 204. 그 사용자의 refresh token을 모두 폐기한다 |
 | `POST /auth/refresh` | `refreshToken*` | Session. refresh token을 새로 바꾼다. 폐기된 토큰을 다시 쓰면 그 사용자의 토큰을 전부 폐기한다. |
 | `POST /auth/logout` | `refreshToken*` | 204 |
-| `DELETE /me` 🔑 | – | 204. Stripe 구독을 바로 해지하고(실패하면 502, 탈퇴하지 않음) 토큰을 모두 폐기한 뒤 `users.deletion_requested_at`을 기록한다. 30일 안에 OAuth로 다시 로그인하면 복구된다. 30일이 지나면 cron이 사용자 행을 지우고 관련 행은 FK cascade로 함께 지워진다(마이그레이션 0018). 유예 중에는 허브 프로필과 소셜 글이 목록·상세에서 빠진다 |
-| `GET /auth/me` | – | `{id, displayName, locale, createdAt}`, ETag |
+| `DELETE /me` 🔑 | – | 204. Stripe 구독을 바로 해지하고(실패하면 502, 탈퇴하지 않음) 토큰을 모두 폐기한 뒤 `users.deletion_requested_at`을 기록한다. 30일 안에 다시 로그인하면 복구된다. 인앱 결제 구독은 서버가 해지할 수 없으므로 탈퇴 확인 창에서 스토어 해지를 안내한다. 기업 관리자는 다른 담당자에게 관리자를 넘기기 전에는 탈퇴할 수 없다(409 `ADMIN_TRANSFER_REQUIRED`, 담당자가 없으면 회사도 함께 탈퇴 처리하고 회사 Stripe 구독을 해지한다). 30일이 지나면 cron이 사용자 행을 지우고 관련 행은 FK cascade로 함께 지워진다(마이그레이션 0018). 유예 중에는 허브 프로필과 소셜 글이 목록·상세에서 빠진다 |
+| `GET /auth/me` | – | `{id, displayName, locale, createdAt, accountType(PERSONAL\|EMPLOYER), companyId, companyRole(ADMIN\|MEMBER)}`, ETag. `companyId`·`companyRole`은 기업이고 회사에 속했을 때만 |
 
 ### 3.3 conversations (gateway 읽기 · core 쓰기 · ai 스트림)
 | 메서드·경로 | 요청 | 응답 |
@@ -274,8 +282,11 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 ### 3.15 billing (core)
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
-| `GET /billing` | – | `{subscriptionStatus, plan, periodEndsAt, balanceMicroCredits, reservedMicroCredits}` |
-| `POST /billing/checkout` 🔑 | `planId*`(`PRO\|ULTRA`) | `{url, expiresAt}` |
+| `GET /billing` | – | `{audience(PERSONAL\|EMPLOYER), source(STRIPE\|APP_STORE\|GOOGLE_PLAY), subscriptionStatus, plan, periodEndsAt, balanceMicroCredits, reservedMicroCredits}`. 기업이면 회사 기준 값이고 `plan`은 `BASIC\|PRO\|ULTRA\|null`. 개인 `plan`은 `FREE\|PRO\|ULTRA\|null` 그대로(앱 호환) |
+| `POST /billing/checkout` 🔑 | `planId*`(개인 `PRO\|ULTRA`, 기업 `BASIC\|PRO\|ULTRA`). 월간만 | `{url, expiresAt}`. 개인은 데스크톱용. 기업은 관리자만(아니면 403). 이미 다른 수단으로 구독 중이면 409 `ALREADY_SUBSCRIBED` |
+| `POST /billing/topup` 🔑 (v2 미확정) | `amount*` | `{url}`. 크레딧 충전(Stripe). 모바일 충전은 소모성 인앱 상품으로 `iap/verify`를 쓴다 |
+| `POST /billing/iap/verify` 🔑 (v2 미확정) | `platform*`(`APP_STORE\|GOOGLE_PLAY`), `signedTransaction`(App Store) 또는 `purchaseToken`(Google Play), `productId*` | `{plan, periodEndsAt}`. 구독·충전을 반영한다. 데스크톱 Stripe로 구독 중이면 409 `ALREADY_SUBSCRIBED` |
+| `POST /billing/webhook/app-store` · `/billing/webhook/google-play` (v2 미확정) | 공개. App Store Server Notifications V2(JWS 검증), Google Play RTDN(Pub/Sub push) | 200. 같은 크레딧 원장에 기록한다 |
 | `POST /billing/portal` 🔑 | – | `{url}` |
 | `GET /billing/ledger` | page | page `{type(PURCHASE\|REFUND), amountMicroCredits, balanceAfter, ...}` |
 | `POST /billing/webhook` | 공개, `Stripe-Signature`(허용 오차 300초) | `{received:true}`. 이벤트 ID로 중복을 막는다. |
@@ -316,15 +327,23 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 목록 항목에 `description`, `requirements[]`, 근무 조건 `workConditions`를 더해 돌려준다. fo-web `/postings/:id`와 같은 ID를 쓴다. `sourceUrl`은 "원문 보기" 링크다.
 
 #### `POST /postings` 🔑
-기업 공고를 만든다. `users.is_employer`가 아니면 403 `FORBIDDEN`이다.
+기업 공고를 만든다. 사업자 확인을 통과한 회사의 담당자가 아니면 403 `FORBIDDEN`이다. 공고는 회사 소유다(`company_id`), `company`는 회사 상호가 기본값이다.
 요청 본문: `title*`(1–300), `jobCategory*`, `careerMin*`, `careerMax`, `location*`, `employmentType*`, `description*`(1–50000), `skills[]`, `imageKey`(대표 이미지, `POST /uploads/images`로 받은 key), `deadline`
+
+요청 본문에 `requirements[]`, `preferred[]`, `workConditions`(object)도 받는다(상세 응답과 AI 초안이 쓰는 필드). (미확정, fo-web 구현 기준)
+
+#### `PATCH /postings/{id}` 🔑 · `POST /postings/{id}/close` 🔑 (미확정, fo-web 구현 기준)
+회사 소유 공고만. 둘 다 `expectedRevision*`을 받는다. 수정은 생성과 같은 필드를 부분 갱신, 마감은 `closed_at`을 기록한다. revision이 다르면 409.
+
+#### `GET /companies/me/postings` 🔑 (미확정, fo-web 구현 기준)
+우리 회사 공고 목록(마감 포함). 공개 `GET /postings`는 게시판용으로 그대로 둔다.
 
 #### `POST /postings/{id}/bookmark` 🔑 · `DELETE` 같은 경로
 같은 요청을 반복해도 결과가 같다. 응답은 204다.
 
 #### `POST /postings/{id}/apply` 🔑
 요청 본문: `documentIds[]`(제출할 내 서류, 본인 것만)
-기업 공고를 본인 `jobs`에 복사하고(`sourceKind: TEXT`) application을 만든다. 이미 지원했으면 기존 application을 돌려준다. 응답은 201 Application이다.
+기업 공고를 본인 `jobs`에 복사하고(`sourceKind: TEXT`) application을 만든다. 제출한 서류는 지원 시점 내용을 `application_snapshots`에 복사한다(지원자가 나중에 고치거나 지워도 기업은 제출한 그대로 본다). 기업 계정은 지원할 수 없다(403). 이미 지원했으면 기존 application을 돌려준다. 응답은 201 Application이다.
 
 ### 4.1.1 통합 검색
 
@@ -352,8 +371,8 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | `GET /me/links` | `kind`(`job\|github\|portfolio\|blog\|other`), page | page Link `{id, kind, url, title, status, fitCount, aiRead, createdAt}`. `status`: 공고는 `READING\|READ`, `fitCount`는 맞춤 횟수 |
 | `POST /me/links` 🔑 · `DELETE /me/links/{id}` | `url*`(자격증명 없는 http(s)), `kind`(생략하면 서버가 주소로 판별), `title`, `aiRead`(GitHub이면 README·커밋을 읽어 둠) | 201 Link / 204. AI 채팅에 붙여넣은 공고 링크는 서버가 `job`으로 저장한다 |
 | `POST /me/devices` 🔑 · `DELETE /me/devices/{token}` | `token*`, `platform*`(`ios\|android`) | 푸시 토큰 등록·해제 |
-| `GET /me/notifications` · `POST /me/notifications/read` 🔑 | page / `ids[]` 또는 `all` | 알림함 목록 `{id, type(DEADLINE\|OFFER\|COMMENT\|AI_DONE), title, body, target, readAt, createdAt}` / 읽음 처리 |
-| `GET` · `PATCH /me/settings` | 알림 스위치 4개, `locale`(`ko\|en`), `profilePublic`, `careerStatusVisibility`(`everyone\|followers\|private`), `hideFromCurrentCompany`, `contactVisibility`, `defaultTone`(`as_is\|professional\|confident\|concise\|technical\|friendly`), `chatRetentionDays`(요금제 한도 안), `allowAiReadMyFiles` | Settings |
+| `GET /me/notifications` · `POST /me/notifications/read` 🔑 | page / `ids[]` 또는 `all` | 알림함 목록 `{id, type(DEADLINE\|OFFER\|COMMENT\|AI_DONE\|APPLICATION_STAGE), title, body, target, readAt, createdAt}` / 읽음 처리 |
+| `GET` · `PATCH /me/settings` | 알림 스위치 5개, `locale`(`ko\|en`), `profilePublic`, `careerStatusVisibility`(`everyone\|followers\|private`), `hideFromCurrentCompany`, `contactVisibility`, `defaultTone`(`as_is\|professional\|confident\|concise\|technical\|friendly`), `allowAiReadMyFiles` | Settings |
 | `POST /users/{userId}/follow` 🔑 · `DELETE` | – | 204. 자기 자신이면 400 |
 | `GET /me/profile` · `PATCH /me/profile` | 섹션 단위 부분 수정: `displayName`, `avatarKey`, `headline`, `jobCategory`, `tenureYears`, `careerStatus`, `openToOffers`, `intro`, `careers[{company, role, startedOn, endedOn, description}]`, `skills[]`, `resumeSourceId`(본인 source만) | Profile |
 | `GET /me/bookmarks` | page | page Posting |
@@ -381,17 +400,60 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 - 로컬에서는 `storage_dir/images/`에 저장하고 `GET /uploads/images/{key}`로 제공한다. 배포할 때 R2로 바꾼다.
 - DB에는 key만 저장한다.
 
+### 4.6 회사와 담당자 (미확정)
+사업자 확인은 국세청 사업자등록정보 진위확인(`validate`)과 상태조회(`status`) API를 서버에서 호출한다([feature-spec.md](feature-spec.md) 17.1).
+
+| 메서드·경로 | 요청 | 응답 |
+|---|---|---|
+| `POST /companies/verify` 🔑 | `bNo*`(10자리), `startDt*`(`YYYYMMDD`), `pNm*`(대표자명), `bNm*`(상호) | 201 Company. 호출한 사람이 관리자가 된다. `valid≠01`이거나 `b_stt_cd≠01`이면 422 `BUSINESS_NOT_VERIFIED`(`details.reason`: `MISMATCH\|SUSPENDED\|CLOSED`). 이미 등록된 사업자번호면 409 `COMPANY_EXISTS`. 기업 계정이 아니면 403 |
+| `GET /companies/me` 🔑 | – | `{id, bNo, name, plan, verifiedAt, role(ADMIN\|MEMBER), seats:{used, limit}}` |
+| `GET /companies/me/members` 🔑 | – | `[{userId, email, role, joinedAt}]` |
+| `POST /companies/me/invites` 🔑 관리자 | `email*` | 201. 초대 메일을 보낸다. 한도(Basic·요금제 없음 0, Pro 2, Ultra 5, 관리자 제외)를 넘으면 403 `SEAT_LIMIT` |
+| `POST /companies/invites/{token}/accept` 🔑 | – | 204. 기업 계정만. 이미 다른 회사 소속이면 409 |
+| `DELETE /companies/me/members/{userId}` 🔑 관리자 | – | 204 |
+| `PATCH /companies/me/members/{userId}` 🔑 관리자 | `role*`(`ADMIN`) | 204. 관리자를 넘긴다(관리자는 한 명) |
+
+### 4.7 지원자 관리 (미확정)
+회사 소유 공고만 다룬다. 다른 회사 공고는 404다.
+
+| 메서드·경로 | 요청 | 응답 |
+|---|---|---|
+| `GET /postings/{id}/applicants` 🔑 | page, `stage` | page `[{applicationId, applicant:{displayName, headline}, stage, appliedAt}]` |
+| `GET /postings/{id}/applicants/{applicationId}` 🔑 | – | `{application, documents:[스냅샷]}` |
+| `PATCH /postings/{id}/applicants/{applicationId}` 🔑 | `stage*`(`SCREENING\|INTERVIEW\|OFFER\|REJECTED`) | 200. 지원자의 application 단계를 바꾸고 `APPLICATION_STAGE` 알림을 보낸다. 끝 단계(`REJECTED` 등)에서 다시 바꾸면 409 `INVALID_TRANSITION` |
+
+### 4.8 기업 AI (미확정)
+fo-web은 기존 `/conversations`에 얹는다.
+- `POST /conversations` 본문에 선택 필드 `audience: 'EMPLOYER'`, `postingId`, `applicationId`를 더한다. 목록은 `GET /conversations?audience=EMPLOYER`.
+- 메시지: `POST /conversations/{id}/messages`(스트림이 없을 때의 폴백).
+- Ultra PDF: `POST /conversations/{id}/attachments`(multipart `file`).
+- AI 공고 초안은 메시지 안의 ```` ```posting-draft ```` 펜스 블록(제목·하는 일·자격 요건·우대 사항·근무 조건)으로 내려준다.
+
+계약으로 정하는 것:
+- 대화는 회사 소유다. 같은 회사 담당자가 함께 보고 이어서 쓴다.
+- 첨부: `postingId`(참고 공고), `applicationId`(서류 검토), Ultra만 PDF 업로드. PDF는 그 대화에만 붙고 대화를 지우면 함께 지운다.
+- 요금제 잠금은 403 `PLAN_REQUIRED`(`details.requiredPlan`). 면접 준비는 Pro부터, PDF 업로드는 Ultra.
+- 사업자 확인 전이면 403 `BUSINESS_NOT_VERIFIED`.
+- 회사 정보 검색은 ai 서비스의 `web_search=True`(OpenRouter `:online`)를 쓴다.
+- 모델과 레버는 회사 요금제로 서버가 정한다. 요청에서 모델을 고르지 않는다.
+
+### 4.9 참고 데이터 동의 (미확정)
+| 메서드·경로 | 요청 | 응답 |
+|---|---|---|
+| `GET /me/consents` 🔑 | – | `{referenceData: bool, updatedAt}` |
+| `PUT /me/consents` 🔑 | `referenceData*` | 200. 끄면 그 사용자의 `reference_samples`를 지운다 |
+
 ### 4.5 라우팅 등록
 - core `handler.ts`의 `dispatch`에 경로를 추가하고, gateway `routes/owner.ts`의 `isCore`에도 추가한다.
-  - `/postings*`, `/search`, `/profiles*`, `/users/*/follow`, `/me/*`, `/posts*`
+  - `/postings*`, `/search`, `/profiles*`, `/users/*/follow`, `/me/*`, `/posts*`, `/companies*`, `/auth/email/*`, `/billing/iap/*`, `/billing/webhook/*`
 - `/uploads/images`는 ai가 처리하므로 기본값(python) 그대로 둔다.
 
 ## 5. 🆕 DB 변경 (미확정 설계안, `db/migrations/0016_recruiting.sql`)
 
 | 테이블 | 주요 컬럼 |
 |---|---|
-| `users` | `is_employer bool default false` 추가 |
-| `job_postings` | `id, company_user_id, company, title, job_category, career_min, career_max, location, employment_type, description, requirements jsonb, work_conditions jsonb, skills jsonb, image_key, deadline, closed_at, created_at` |
+| `users` | `is_employer bool default false`, `password_hash`, `email_verified_at` 추가 |
+| `job_postings` | `id, company_id(→ companies, 기존 company_user_id를 바꾼다), company, title, job_category, career_min, career_max, location, employment_type, description, requirements jsonb, work_conditions jsonb, skills jsonb, image_key, deadline, closed_at, created_at` |
 | `profiles` | `user_id pk, headline, job_category, tenure_years, career_status check(...), open_to_offers, intro, careers jsonb, skills jsonb, avatar_key, resume_source_id, created_at, updated_at` |
 | `bookmarks` | `(user_id, posting_id) pk, created_at` |
 | `follows` | `(follower_id, followee_id) pk, check(follower_id <> followee_id)` |
@@ -400,6 +462,15 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | `user_links` | `id, user_id, type check(posting, profile), url, title, created_at` |
 | `posts` | `id, user_id, category check(...), title, body, image_keys jsonb, view_count, created_at` |
 | `post_comments` | `id, post_id, user_id, body, created_at` |
+| `companies` | `id, b_no unique, name, verified_at, plan check(BASIC, PRO, ULTRA) null, stripe_customer_id, created_at` |
+| `company_members` | `(company_id, user_id) pk, user_id unique, role check(ADMIN, MEMBER), created_at` |
+| `company_invites` | `id, company_id, email, token unique, expires_at, accepted_at` |
+| `application_snapshots` | `id, application_id, document_id, title, content, created_at` |
+| `reference_samples` | `id, source_user_id(on delete cascade), job_category, tenure_years, fit_score, part_scores jsonb, plan check(FREE, PRO, ULTRA), features jsonb, sentence_templates jsonb, created_at` |
+| `user_consents` | `user_id pk, reference_data bool default false, updated_at` |
+| `email_tokens` | `id, user_id, kind check(VERIFY, RESET), token_hash, expires_at, used_at` |
+| (크레딧 원장) | 기존 원장·잔액에 `company_id` 소유 컬럼을 추가한다(기업은 회사 단위 잔액). 사용자·회사 중 하나만 채운다 |
+| `iap_subscriptions` | `id, user_id, platform check(APP_STORE, GOOGLE_PLAY), original_transaction_id unique, product_id, expires_at, status` |
 
 인덱스
 - `pg_trgm`: `job_postings(title, company)`, `jobs(title, company)`
@@ -418,4 +489,8 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 - 캘린더 이벤트 유형에 커피챗(`COFFEE_CHAT`)이 없다. 추가해야 한다.
 - 대화는 보관(`archive`)만 있다. 모바일 ⋯ 메뉴의 대화 공유·삭제 API가 없다.
 - 최근 검색어(모두 지우기 포함), 많이 찾는 검색어(1–8위), 많이 찾는 기술용 API가 없다.
-- `POST /billing/checkout`은 월간/연간을 고르지 못한다. 크레딧 추가 구매("충전"), 요금제 낮추기, 매월 1일 크레딧 충전, 요금제별 기능 제한(대화 기록 보관 기간, 내보내기, 프로젝트)도 없다. 요금제 크레딧(월 300 / 5,000 / 20,000)을 마이크로크레딧 단위와 맞추는 일은 미결이다.
+- `POST /billing/checkout`에 기업 요금제(`BASIC`)와 audience가 없다. 크레딧 추가 구매("충전"), 요금제 낮추기, 매월 1일 크레딧 충전, 요금제별 AI 레버(모델·추론 강도·참고 범위) 적용, 역량 보완 프로젝트 개수 제한, 인앱 결제 검증·스토어 웹훅이 없다. 요금제 크레딧(월 300 / 5,000 / 20,000, 기업 3,000 / 15,000 / 30,000)을 마이크로크레딧 단위와 맞추는 일은 미결이다.
+- gateway `services/gateway/src/models.ts`의 `EFFORTS`에 `MAX`가 없다(ai·core에는 있다).
+- `POST /postings/{id}/apply`는 `documentIds`를 `application_events.payload`에만 남긴다. 스냅샷이 없다.
+- 이메일·비밀번호 가입과 메일 발송이 없다. OAuth만 있다.
+- 응답 필드 추가(선택, 앱 호환 유지): Application `fitScore?: number|null`(웹 지원활동 표시), Post `author.employer?: boolean` · `author.companyName?: string|null`(기업 배지), Settings `notifyApplicationStage?`, 알림 `type` `APPLICATION_STAGE`와 `target.kind: 'activity'`.
