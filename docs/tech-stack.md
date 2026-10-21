@@ -75,7 +75,7 @@ push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 | 아이콘 | 선 아이콘 38개, 3D 아이콘 13개(SVG 자리 표시). 로고 파일과 최종 3D 렌더는 아직 없다 |
 
 ### 2.5 fo-web 🆕
-Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. 데스크톱(5173)과 겹치지 않게 포트 5174를 쓰고, 에뮬레이터에서 접속할 수 있게 `host: true`로 띄운다.
+Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. 데스크톱(5173)과 겹치지 않게 포트 5174를 쓰고, 에뮬레이터에서 접속할 수 있게 `host: true`로 띄운다. 앱 WebView 페이지와 개인·기업 웹을 함께 서빙한다. 웹 로그인은 이메일·OAuth를 직접 처리한다(WebView는 토큰 주입). 기업 결제는 Stripe Checkout으로 보낸다.
 
 ## 3. 백엔드
 
@@ -88,8 +88,11 @@ Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. �
 | 브라우저 | Playwright (SSRF 검증 프록시 경유). Workers에서는 Browser Rendering |
 | 문서 | ReportLab(PDF), zip+XML(DOCX), opendataloader-pdf / pypdf(텍스트 추출) |
 | RAG | pgvector top-k (evidence 청크) |
-| LLM | OpenRouter, OpenAI 호환, BYOK(OpenAI·Claude·Gemini·Grok), 역할별 모델 라우팅 |
-| 결제 | Stripe |
+| LLM | OpenRouter, OpenAI 호환, BYOK(OpenAI·Claude·Gemini·Grok), 역할별 모델 라우팅. 요금제별 관리형 모델(DeepSeek · Sonnet · Opus · Fable 최신), 추론 강도 `LOW\|MEDIUM\|HIGH\|MAX`, 웹 검색은 OpenRouter `:online`, DeepSeek는 제공사 라우팅으로 미국 호스팅만 |
+| 결제 | Stripe(데스크톱 개인, fo-web 기업) |
+| 인앱 결제 | App Store · Google Play 구독과 소모성 상품(모바일 개인). 서버 검증, App Store Server Notifications V2, Google Play RTDN. 클라이언트 라이브러리는 구현할 때 정한다 |
+| 메일 | 이메일 인증 · 비밀번호 재설정 · 담당자 초대 (Cloudflare Email Service) |
+| 사업자 확인 | 국세청 사업자등록정보 진위확인 및 상태조회 API(공공데이터포털) |
 | 테스트 | core·gateway: `node --test`, `tsc --noEmit`. ai: pytest |
 
 ## 4. 데이터
