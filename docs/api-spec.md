@@ -282,7 +282,7 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 ### 3.15 billing (core)
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
-| `GET /billing` | – | `{audience(PERSONAL\|EMPLOYER), source(STRIPE\|APP_STORE\|GOOGLE_PLAY), subscriptionStatus, plan, periodEndsAt, balanceMicroCredits, reservedMicroCredits}`. 기업이면 회사 기준 값 |
+| `GET /billing` | – | `{audience(PERSONAL\|EMPLOYER), source(STRIPE\|APP_STORE\|GOOGLE_PLAY), subscriptionStatus, plan, periodEndsAt, balanceMicroCredits, reservedMicroCredits}`. 기업이면 회사 기준 값이고 `plan`은 `BASIC\|PRO\|ULTRA\|null`. 개인 `plan`은 `FREE\|PRO\|ULTRA\|null` 그대로(앱 호환) |
 | `POST /billing/checkout` 🔑 | `planId*`(개인 `PRO\|ULTRA`, 기업 `BASIC\|PRO\|ULTRA`). 월간만 | `{url, expiresAt}`. 개인은 데스크톱용. 기업은 관리자만(아니면 403). 이미 다른 수단으로 구독 중이면 409 `ALREADY_SUBSCRIBED` |
 | `POST /billing/topup` 🔑 (v2 미확정) | `amount*` | `{url}`. 크레딧 충전(Stripe). 모바일 충전은 소모성 인앱 상품으로 `iap/verify`를 쓴다 |
 | `POST /billing/iap/verify` 🔑 (v2 미확정) | `platform*`(`APP_STORE\|GOOGLE_PLAY`), `signedTransaction`(App Store) 또는 `purchaseToken`(Google Play), `productId*` | `{plan, periodEndsAt}`. 구독·충전을 반영한다. 데스크톱 Stripe로 구독 중이면 409 `ALREADY_SUBSCRIBED` |
@@ -329,6 +329,14 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 #### `POST /postings` 🔑
 기업 공고를 만든다. 사업자 확인을 통과한 회사의 담당자가 아니면 403 `FORBIDDEN`이다. 공고는 회사 소유다(`company_id`), `company`는 회사 상호가 기본값이다.
 요청 본문: `title*`(1–300), `jobCategory*`, `careerMin*`, `careerMax`, `location*`, `employmentType*`, `description*`(1–50000), `skills[]`, `imageKey`(대표 이미지, `POST /uploads/images`로 받은 key), `deadline`
+
+요청 본문에 `requirements[]`, `preferred[]`, `workConditions`(object)도 받는다(상세 응답과 AI 초안이 쓰는 필드). (미확정, fo-web 구현 기준)
+
+#### `PATCH /postings/{id}` 🔑 · `POST /postings/{id}/close` 🔑 (미확정, fo-web 구현 기준)
+회사 소유 공고만. 둘 다 `expectedRevision*`을 받는다. 수정은 생성과 같은 필드를 부분 갱신, 마감은 `closed_at`을 기록한다. revision이 다르면 409.
+
+#### `GET /companies/me/postings` 🔑 (미확정, fo-web 구현 기준)
+우리 회사 공고 목록(마감 포함). 공개 `GET /postings`는 게시판용으로 그대로 둔다.
 
 #### `POST /postings/{id}/bookmark` 🔑 · `DELETE` 같은 경로
 같은 요청을 반복해도 결과가 같다. 응답은 204다.
@@ -415,7 +423,13 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | `PATCH /postings/{id}/applicants/{applicationId}` 🔑 | `stage*`(`SCREENING\|INTERVIEW\|OFFER\|REJECTED`) | 200. 지원자의 application 단계를 바꾸고 `APPLICATION_STAGE` 알림을 보낸다. 끝 단계(`REJECTED` 등)에서 다시 바꾸면 409 `INVALID_TRANSITION` |
 
 ### 4.8 기업 AI (미확정)
-기업 AI 대화를 기존 `/conversations`에 얹을지 따로 둘지는 구현할 때 정한다. 계약으로 정하는 것:
+fo-web은 기존 `/conversations`에 얹는다.
+- `POST /conversations` 본문에 선택 필드 `audience: 'EMPLOYER'`, `postingId`, `applicationId`를 더한다. 목록은 `GET /conversations?audience=EMPLOYER`.
+- 메시지: `POST /conversations/{id}/messages`(스트림이 없을 때의 폴백).
+- Ultra PDF: `POST /conversations/{id}/attachments`(multipart `file`).
+- AI 공고 초안은 메시지 안의 ```` ```posting-draft ```` 펜스 블록(제목·하는 일·자격 요건·우대 사항·근무 조건)으로 내려준다.
+
+계약으로 정하는 것:
 - 대화는 회사 소유다. 같은 회사 담당자가 함께 보고 이어서 쓴다.
 - 첨부: `postingId`(참고 공고), `applicationId`(서류 검토), Ultra만 PDF 업로드. PDF는 그 대화에만 붙고 대화를 지우면 함께 지운다.
 - 요금제 잠금은 403 `PLAN_REQUIRED`(`details.requiredPlan`). 면접 준비는 Pro부터, PDF 업로드는 Ultra.
@@ -479,3 +493,4 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 - gateway `services/gateway/src/models.ts`의 `EFFORTS`에 `MAX`가 없다(ai·core에는 있다).
 - `POST /postings/{id}/apply`는 `documentIds`를 `application_events.payload`에만 남긴다. 스냅샷이 없다.
 - 이메일·비밀번호 가입과 메일 발송이 없다. OAuth만 있다.
+- 응답 필드 추가(선택, 앱 호환 유지): Application `fitScore?: number|null`(웹 지원활동 표시), Post `author.employer?: boolean` · `author.companyName?: string|null`(기업 배지), Settings `notifyApplicationStage?`, 알림 `type` `APPLICATION_STAGE`와 `target.kind: 'activity'`.
