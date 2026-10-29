@@ -108,6 +108,7 @@
 |---|---|---|
 | `GET /auth/{google\|github}/start` | `codeChallengeMethod*`=S256, `codeChallenge*`, `redirectUri*` (`push://auth/callback` 또는 `http://localhost:5173/auth/callback`), `accountType`(`PERSONAL\|EMPLOYER`, 기본 `PERSONAL`) | `{authorizationUrl, state, expiresAt}`. GitHub에 `EMPLOYER`면 400 `VALIDATION_ERROR` |
 | `GET /auth/{provider}/callback` | `code`, `state` | 302 → `{finalUri}?code=` |
+| Apple 로그인 (API 변경 필요) | Android·웹: `GET /auth/{provider}/start`의 provider에 `apple`을 추가한다(지금은 `google\|github`만 받는다). iOS: 네이티브 Apple 로그인이 준 identity token을 받는 경로가 필요하다 | Session. Apple이 이메일을 가리면 릴레이 주소를 받는다. 개인 계정은 휴대폰 번호로 구분하므로 이메일로 계정을 합치지 않는다 |
 | `POST /auth/exchange` | `code*`, `codeVerifier*` | `Session{accessToken, refreshToken, expiresIn, user}`. 제공사 이메일이 인증되지 않았으면 400 `EMAIL_NOT_VERIFIED`(GitHub은 `verified`인 기본 이메일만). 이메일이 다른 계정 종류로 이미 있으면 409 `EMAIL_TAKEN`(`details.accountType`) |
 | `POST /auth/email/signup` | `email*`, `password*`(8–128), `accountType*`(`EMPLOYER`), `displayName*`, `consentReference`(bool) | 202. 인증 메일을 보낸다. 이메일이 이미 있으면 409 `EMAIL_TAKEN`(`details.accountType`). 개인은 이메일 가입이 없다. 지금 계약은 `PERSONAL`도 받는다(API 변경 필요) |
 | `POST /auth/email/verify` | `token*` | Session. 이때 계정이 생긴다 |
@@ -285,7 +286,7 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | `GET /billing` | – | `{audience(PERSONAL\|EMPLOYER), source(STRIPE\|APP_STORE\|GOOGLE_PLAY), subscriptionStatus, plan, periodEndsAt, balanceMicroCredits, reservedMicroCredits}`. 기업이면 회사 기준 값이고 `plan`은 `BASIC\|PRO\|ULTRA\|null`. 개인 `plan`은 `FREE\|PRO\|ULTRA\|null` 그대로(앱 호환) |
 | `POST /billing/checkout` 🔑 | `planId*`(기업 `BASIC\|PRO\|ULTRA`). 월간만 | `{url, expiresAt}`. 기업 관리자만(아니면 403). 개인은 인앱 결제만 써서 이 경로를 쓰지 않는다. 지금 계약은 개인 `PRO\|ULTRA`도 받는다(API 변경 필요) |
 | `POST /billing/topup` 🔑 (v2 미확정) | `amount*` | `{url}`. 기업 크레딧 구매(Stripe). 개인 크레딧 구매는 소모성 인앱 상품으로 `iap/verify`를 쓴다 |
-| `POST /billing/iap/verify` 🔑 (v2 미확정) | `platform*`(`APP_STORE\|GOOGLE_PLAY`), `signedTransaction`(App Store) 또는 `purchaseToken`(Google Play), `productId*` | `{plan, periodEndsAt}`. 구독·충전을 반영한다. 이미 활성 구독이 있으면 409 `ALREADY_SUBSCRIBED` |
+| `POST /billing/iap/verify` 🔑 (v2 미확정) | `platform*`(`APP_STORE\|GOOGLE_PLAY`), `signedTransaction`(App Store) 또는 `purchaseToken`(Google Play), `productId*` | `{plan, periodEndsAt}`. 구독과 크레딧 구매를 반영한다. 이미 활성 구독이 있으면 409 `ALREADY_SUBSCRIBED` |
 | `POST /billing/webhook/app-store` · `/billing/webhook/google-play` (v2 미확정) | 공개. App Store Server Notifications V2(JWS 검증), Google Play RTDN(Pub/Sub push) | 200. 같은 크레딧 원장에 기록한다 |
 | `POST /billing/portal` 🔑 | – | `{url}` |
 | `GET /billing/ledger` | page | page `{type(PURCHASE\|REFUND), amountMicroCredits, balanceAfter, ...}` |
@@ -298,7 +299,7 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 
 ### 4.1 공고 검색
 
-기업 공고(`job_postings`, 마감되지 않은 것)를 찾는다. 모바일에는 공고 추가 화면과 출처 필터가 없다. 모바일 내 공고는 AI 채팅에 붙여넣은 링크·본문으로 만든다(`jobs`, `sourceKind: URL|TEXT`). 내 공고(`jobs`)를 이 목록에 넣을지는 미결이다([PRD.md](PRD.md) 16장).
+기업 공고(`job_postings`, 마감되지 않은 것)를 찾는다. 모바일에는 공고 추가 화면과 출처 필터가 없다. 모바일 내 공고는 에이전트에 붙여넣은 링크·본문으로 만든다(`jobs`, `sourceKind: URL|TEXT`). 내 공고(`jobs`)를 이 목록에 넣을지는 미결이다([PRD.md](PRD.md) 16장).
 
 #### `GET /postings`
 | 쿼리 | 값 |
@@ -369,7 +370,7 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | `GET /me/offers/{id}/messages` | page | page OfferMessage `{id, offerId, sender, body, createdAt}`. 보낸 사람과 받은 사람만 볼 수 있다 |
 | `POST /me/offers/{id}/messages` 🔑 | `body*` | 201 OfferMessage. `ACCEPTED`가 아니면 409 `CONFLICT` |
 | `GET /me/links` | `kind`(`job\|github\|portfolio\|blog\|other`), page | page Link `{id, kind, url, title, status, fitCount, aiRead, createdAt}`. `status`: 공고는 `READING\|READ`, `fitCount`는 맞춤 횟수 |
-| `POST /me/links` 🔑 · `DELETE /me/links/{id}` | `url*`(자격증명 없는 http(s)), `kind`(생략하면 서버가 주소로 판별), `title`, `aiRead`(GitHub이면 README·커밋을 읽어 둠) | 201 Link / 204. AI 채팅에 붙여넣은 공고 링크는 서버가 `job`으로 저장한다 |
+| `POST /me/links` 🔑 · `DELETE /me/links/{id}` | `url*`(자격증명 없는 http(s)), `kind`(생략하면 서버가 주소로 판별), `title`, `aiRead`(GitHub이면 README·커밋을 읽어 둠) | 201 Link / 204. 에이전트에 붙여넣은 공고 링크는 서버가 `job`으로 저장한다 |
 | `POST /me/devices` 🔑 · `DELETE /me/devices/{token}` | `token*`, `platform*`(`ios\|android`) | 푸시 토큰 등록·해제 |
 | `GET /me/notifications` · `POST /me/notifications/read` 🔑 | page / `ids[]` 또는 `all` | 알림함 목록 `{id, type(DEADLINE\|OFFER\|COMMENT\|AI_DONE\|APPLICATION_STAGE), title, body, target, readAt, createdAt}` / 읽음 처리 |
 | `GET` · `PATCH /me/settings` | 알림 스위치 5개, `locale`(`ko\|en`), `profilePublic`, `careerStatusVisibility`(`everyone\|followers\|private`), `hideFromCurrentCompany`, `contactVisibility`, `defaultTone`(`as_is\|professional\|confident\|concise\|technical\|friendly`), `allowAiReadMyFiles`, `aiAccessMode`(`ALWAYS_ASK\|AUTO\|BYPASS`, 기본 `AUTO`) | Settings. 계약에 남은 `chatRetentionDays` · `defaultEffort` · `confirmBeforeEdit`는 쓰지 않는다(6장) |
@@ -443,6 +444,11 @@ fo-web은 기존 `/conversations`에 얹는다.
 | `GET /me/consents` 🔑 | – | `{referenceData: bool, updatedAt}` |
 | `PUT /me/consents` 🔑 | `referenceData*` | 200. 끄면 그 사용자의 `reference_samples`를 지운다 |
 
+- 두 경로는 계약(`packages/contracts`, `Consents{referenceData, updatedAt}`)에 들어가 있다.
+- 참고 데이터 제공은 에이전트를 쓰기 위한 필수 동의다([feature-spec.md](feature-spec.md) 18.3). 앱은 에이전트를 열 때 `GET /me/consents`로 확인하고, 꺼져 있으면 동의 시트를 띄운다.
+- `referenceData`가 꺼진 개인 사용자의 에이전트 요청(`POST /conversations`, `POST /conversations/{id}/messages`)을 서버가 막는 규칙과 오류 코드가 없다(API 변경 필요).
+- 가입 약관 동의(필수: 만 14세 이상 · 서비스 이용약관 · 개인정보 수집·이용, 선택: 혜택·이벤트 알림 받기)를 저장할 필드와 경로가 없다(API 변경 필요). 동의 시각과 약관 버전도 함께 남겨야 한다.
+
 ### 4.5 라우팅 등록
 - core `handler.ts`의 `dispatch`에 경로를 추가하고, gateway `routes/owner.ts`의 `isCore`에도 추가한다.
   - `/postings*`, `/search`, `/profiles*`, `/users/*/follow`, `/me/*`, `/posts*`, `/companies*`, `/auth/email/*`, `/billing/iap/*`, `/billing/webhook/*`
@@ -452,7 +458,7 @@ fo-web은 기존 `/conversations`에 얹는다.
 
 | 테이블 | 주요 컬럼 |
 |---|---|
-| `users` | `is_employer bool default false`, `password_hash`, `email_verified_at`(기업 이메일 계정) 추가. 개인 전화번호(unique, 개인 계정 식별) 컬럼이 필요하다(API 변경 필요) |
+| `users` | `is_employer bool default false`, `password_hash`, `email_verified_at`(기업 이메일 계정) 추가. 개인 휴대폰 번호(unique, 개인 계정 식별) 컬럼이 필요하다(API 변경 필요) |
 | `job_postings` | `id, company_id(→ companies, 기존 company_user_id를 바꾼다), company, title, job_category, career_min, career_max, location, employment_type, description, requirements jsonb, work_conditions jsonb, skills jsonb, image_key, deadline, closed_at, created_at` |
 | `profiles` | `user_id pk, headline, job_category, tenure_years, career_status check(...), open_to_offers, intro, careers jsonb, skills jsonb, avatar_key, resume_source_id, created_at, updated_at` |
 | `bookmarks` | `(user_id, posting_id) pk, created_at` |
@@ -467,7 +473,7 @@ fo-web은 기존 `/conversations`에 얹는다.
 | `company_invites` | `id, company_id, email, token unique, expires_at, accepted_at` |
 | `application_snapshots` | `id, application_id, document_id, title, content, created_at` |
 | `reference_samples` | `id, source_user_id(on delete cascade), job_category, tenure_years, fit_score, part_scores jsonb, plan check(FREE, PRO, ULTRA), features jsonb, sentence_templates jsonb, created_at` |
-| `user_consents` | `user_id pk, reference_data bool default false, updated_at` |
+| `user_consents` | `user_id pk, reference_data bool default false, updated_at`. 가입 약관 동의(필수 3개, 선택 혜택·이벤트 알림)를 남길 컬럼이 필요하다(API 변경 필요) |
 | `email_tokens` | `id, user_id, kind check(VERIFY, RESET), token_hash, expires_at, used_at` |
 | (크레딧 원장) | 기존 원장·잔액에 `company_id` 소유 컬럼을 추가한다(기업은 회사 단위 잔액). 사용자·회사 중 하나만 채운다 |
 | `iap_subscriptions` | `id, user_id, platform check(APP_STORE, GOOGLE_PLAY), original_transaction_id unique, product_id, expires_at, status` |
@@ -489,11 +495,15 @@ fo-web은 기존 `/conversations`에 얹는다.
 - 캘린더 이벤트 유형에 커피챗(`COFFEE_CHAT`)이 없다. 추가해야 한다.
 - 대화는 이름 바꾸기 · 고정(`PATCH`), 보관(`archive`), 공유(`POST /conversations/{id}/share`)가 있다. 대화 삭제, 보관한 대화 목록(`GET /conversations`는 보관한 대화를 빼고 준다), 보관 해제 API가 없다(API 변경 필요).
 - 최근 검색어(모두 지우기 포함), 많이 찾는 검색어(1–8위), 많이 찾는 기술용 API가 없다.
-- `POST /billing/checkout`에 기업 요금제(`BASIC`)와 audience가 없다. 크레딧 추가 구매("충전"), 요금제 낮추기, 매월 1일 크레딧 충전, 요금제별 AI 레버(모델·추론 강도·참고 범위) 적용, 역량 보완 프로젝트 개수 제한, 인앱 결제 검증·스토어 웹훅이 없다. 요금제 크레딧(월 300 / 5,000 / 20,000, 기업 3,000 / 15,000 / 30,000)을 마이크로크레딧 단위와 맞추는 일은 미결이다.
+- `POST /billing/checkout`에 기업 요금제(`BASIC`)와 audience가 없다. 크레딧 추가 구매("크레딧 구매"), 요금제 낮추기, 매월 1일 크레딧 충전, 요금제별 AI 레버(모델·추론 강도·참고 범위) 적용, 역량 보완 프로젝트 개수 제한, 인앱 결제 검증·스토어 웹훅이 없다. 요금제 크레딧(월 300 / 5,000 / 20,000, 기업 3,000 / 15,000 / 30,000)을 마이크로크레딧 단위와 맞추는 일은 미결이다.
 - gateway `services/gateway/src/models.ts`의 `EFFORTS`에 `MAX`가 없다(ai·core에는 있다).
 - `POST /postings/{id}/apply`는 `documentIds`를 `application_events.payload`에만 남긴다. 스냅샷이 없다.
 - 이메일·비밀번호 가입은 계약(`packages/contracts`)에 `/auth/email/*`로 들어가 있지만 `accountType`에 `PERSONAL`도 받는다. 이메일 가입은 기업 계정만 쓰므로 막아야 한다(API 변경 필요).
-- 개인 전화번호 인증(인증번호 발송 · 확인), OAuth 로그인 뒤 전화번호 연결, 전화번호 기준 중복 가입 막기 API가 없다(API 변경 필요). 문자 발송 업체는 미결이다. 참고 데이터 동의(`consentReference`)도 전화번호 인증 단계에서 받도록 옮겨야 한다.
+- 개인 휴대폰 번호 인증(인증번호 발송 · 확인), OAuth 로그인 뒤 휴대폰 번호 연결, 휴대폰 번호 기준 중복 가입 막기 API가 없다(API 변경 필요). 인증번호가 틀렸을 때와 만료됐을 때 화면 문구가 다르므로 오류 코드도 둘로 나눠야 한다. 문자 발송 업체는 미결이다.
+- OAuth 제공사에 Apple이 없다(`google | github`만). Apple 웹 로그인과 iOS 네이티브 Apple 로그인을 받아야 한다(API 변경 필요).
+- 참고 데이터 동의는 가입에서 받지 않고 에이전트를 처음 열 때 `PUT /me/consents`로 받는다. `POST /auth/email/signup`의 `consentReference`는 빼야 한다(API 변경 필요). 동의하지 않은 사용자의 에이전트 요청을 막는 규칙이 없다(API 변경 필요, 4.9).
+- 가입 약관 동의(만 14세 이상 · 서비스 이용약관 · 개인정보 수집·이용, 선택 혜택·이벤트 알림)를 저장하는 API가 없다(API 변경 필요).
+- 서류 · 경력 · 내 링크를 지운 뒤 "되돌리기"를 처리할 방법이 없다. 토스트가 닫힌 뒤에 `DELETE`를 보낼지, 복구 API를 둘지 미결이다.
 - 문서 종류 enum(`RESUME | PORTFOLIO | COVER_LETTER`)에 경력기술서가 없다(API 변경 필요).
 - Profile에 `followingCount` · `postCount`가 없다. 프로필 헤더 "N 팔로잉 · N 팔로워 · N 게시글"에 필요하다(API 변경 필요).
 - Settings 계약에 `chatRetentionDays`(대화 기록 보관 기간), `defaultEffort`(작업 강도), `confirmBeforeEdit`(바꾸기 전에 확인)가 남아 있다. 대화 기록은 지울 때까지 보관하고, 추론 강도는 요금제가 정하고, 확인 스위치는 `aiAccessMode`로 바뀌었으므로 세 필드를 빼야 한다(API 변경 필요). 메시지 요청의 `ai.effort`도 클라이언트가 고르지 않고 요금제로 서버가 정해야 한다(API 변경 필요).
