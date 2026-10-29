@@ -280,12 +280,15 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 |---|---|---|
 | `GET /billing` | – | `{audience(PERSONAL\|EMPLOYER), source(STRIPE\|APP_STORE\|GOOGLE_PLAY), subscriptionStatus, plan, periodEndsAt, balanceMicroCredits, reservedMicroCredits}`. 기업이면 회사 기준 값이고 `plan`은 `BASIC\|PRO\|ULTRA\|null`. 개인 `plan`은 `FREE\|PRO\|ULTRA\|null` 그대로(앱 호환) |
 | `POST /billing/checkout` 🔑 | `planId*`(기업 `BASIC\|PRO\|ULTRA`). 월간만 | `{url, expiresAt}`. 기업 관리자만(아니면 403). 개인은 인앱 결제만 써서 이 경로를 쓰지 않는다. 지금 계약은 개인 `PRO\|ULTRA`도 받는다(API 변경 필요) |
-| `POST /billing/topup` 🔑 (v2 미확정) | `amount*` | `{url}`. 기업 크레딧 구매(Stripe). 개인 크레딧 구매는 소모성 인앱 상품으로 `iap/verify`를 쓴다 |
+| `POST /billing/topup` 🔑 (v2 미확정) | `amount*` | `{url}`. 기업 크레딧 구매(Stripe). 개인 크레딧 구매는 소모성 "크레딧 구매 상품"으로 `iap/verify`를 쓴다 |
 | `POST /billing/iap/verify` 🔑 (v2 미확정) | `platform*`(`APP_STORE\|GOOGLE_PLAY`), `signedTransaction`(App Store) 또는 `purchaseToken`(Google Play), `productId*` | `{plan, periodEndsAt}`. 구독과 크레딧 구매를 반영한다. 이미 활성 구독이 있으면 409 `ALREADY_SUBSCRIBED` |
 | `POST /billing/webhook/app-store` · `/billing/webhook/google-play` (v2 미확정) | 공개. App Store Server Notifications V2(JWS 검증), Google Play RTDN(Pub/Sub push) | 200. 같은 크레딧 원장에 기록한다 |
 | `POST /billing/portal` 🔑 | – | `{url}` |
 | `GET /billing/ledger` | page | page `{type(PURCHASE\|REFUND), amountMicroCredits, balanceAfter, ...}` |
 | `POST /billing/webhook` | 공개, `Stripe-Signature`(허용 오차 300초) | `{received:true}`. 이벤트 ID로 중복을 막는다. |
+
+- 크레딧은 서버 안에서만 쓰는 계량 단위다. 화면에는 크레딧 수치를 보여주지 않고 사용량을 문구와 퍼센트로만 보여준다. 원장 · `costMicroCredits` · topup 같은 내부 이름은 그대로 둔다.
+- 클라이언트에 주는 사용량 응답에는 원시 크레딧 잔액 대신 이번 달 사용량 퍼센트(0–100)와 다시 채워지는 날(매월 1일)을 담아야 한다. 지금 계약의 `GET /billing`에는 `balanceMicroCredits`·`reservedMicroCredits`만 있고 퍼센트와 리셋 날짜 필드가 없다(API 변경 필요).
 
 ### 3.16 experiments (ai)
 `GET /experiments/{key}/assignment` · `POST /experiments/{key}/events` 🔑 `{event*}` · `GET /experiments/{key}/stats` · `GET /experiments/{key}/results`
