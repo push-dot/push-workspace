@@ -83,14 +83,13 @@
   - 공개 경로: IP당 분당 60회
 - **본문**: ai는 20MiB가 넘으면 413이다. 필드별 제한은 각 엔드포인트에 적는다.
 - **CORS 허용 Origin**: `tauri://localhost`, `http(s)://tauri.localhost`, localhost와 127.0.0.1(모든 포트). 🆕 fo-web 운영 도메인을 추가해야 한다.
-- **허용 헤더**: `Authorization`, `Content-Type`, `Accept`, `Origin`, `Idempotency-Key`, `X-Request-Id`, `X-Byok-Key`
+- **허용 헤더**: `Authorization`, `Content-Type`, `Accept`, `Origin`, `Idempotency-Key`, `X-Request-Id`
 
 ### 2.6 공통 타입
 - `Operation`: `{id, type, applicationId, status, progress, result:{kind, value}, error, inputRequest, createdAt, updatedAt}`
   - status: `QUEUED | RUNNING | NEEDS_INPUT | SUCCEEDED | FAILED | CANCELLED`
-- `AiOptions`: `{provider*, model*, credentialMode*, effort*, ultraResume, webSearch, models}`
+- `AiOptions`: `{provider*, model*, effort*, ultraResume, webSearch, models}`. AI는 항상 Push가 제공하는 모델로 돌린다
   - provider: `OPENAI | OPENROUTER | CLAUDE | GEMINI | GROK`
-  - credentialMode: `MANAGED`만 쓴다. `BYOK`는 받지 않는다(API 변경 필요: 서버에 남은 BYOK 값과 키 저장을 지운다)
   - effort: `LOW | MEDIUM | HIGH | MAX`
 
 ## 3. 엔드포인트 (기존)
@@ -128,7 +127,7 @@
 | `PATCH /conversations/{id}` | `expectedRevision*`, `title`, `pinned` | Conversation |
 | `POST /conversations/{id}/archive` 🔑 | `expectedRevision*` | Conversation. 이 대화에서만 쓰던 근거도 함께 보관한다. |
 | `GET /conversations/{id}/messages` | page | page `Message{id, conversationId, role, text, attachments[], operationId, createdAt}` |
-| `POST /conversations/{id}/messages` 🔑 | `text*`(1–20000), `accessMode`(`ALWAYS_ASK\|AUTO\|BYPASS`. 생략하면 저장한 설정(`aiAccessMode`, 기본 `AUTO`). 예전 값 `SUGGEST`는 `AUTO`, `CONFIRM_ACTIONS`는 `ALWAYS_ASK`로 받는다), `context{documentId, versionId, evidenceIds[]}`, `ai`; 헤더 `X-Byok-Key` | 202 Operation `CHAT_MESSAGE` `{jobId}`. 403 `FEATURE_DISABLED`, 409 `INTEGRATION_REQUIRED` |
+| `POST /conversations/{id}/messages` 🔑 | `text*`(1–20000), `accessMode`(`ALWAYS_ASK\|AUTO\|BYPASS`. 생략하면 저장한 설정(`aiAccessMode`, 기본 `AUTO`). 예전 값 `SUGGEST`는 `AUTO`, `CONFIRM_ACTIONS`는 `ALWAYS_ASK`로 받는다), `context{documentId, versionId, evidenceIds[]}`, `ai` | 202 Operation `CHAT_MESSAGE` `{jobId}`. 403 `FEATURE_DISABLED` |
 | `POST /conversations/{id}/messages/stream` | 위와 같은 본문 | SSE |
 | `GET /conversations/{id}/messages/stream/active` | `after` 또는 `Last-Event-ID` | SSE, 진행 중인 작업이 없으면 204 |
 
@@ -272,12 +271,8 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 ### 3.14 ai (gateway · core · ai)
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
-| `GET /ai/models` | `provider`, `credentialMode`; `X-Byok-Key` | `[{provider, model, label, available, supportedEfforts}]` |
-| `GET /ai/keys` | – | `[{provider, lastFour, configured, updatedAt}]` |
-| `PUT /ai/keys/{provider}` | `key*`(≥8) | key |
-| `DELETE /ai/keys/{provider}` | – | 204 |
-| `POST /ai/keys/{provider}/test` 🔑 | – | `{valid, checkedAt, errorCode}`. 지금은 스텁이라 항상 `valid:false`다. |
-| `GET /ai/usage` | page, `from`, `to` | page `{provider, model, managed, inputTokens, outputTokens, costMicroCredits, status}` |
+| `GET /ai/models` | `provider` | `[{provider, model, label, available, supportedEfforts}]` |
+| `GET /ai/usage` | page, `from`, `to` | page `{provider, model, inputTokens, outputTokens, costMicroCredits, status}` |
 | `POST /ai/generate` 🔑 | `prompt*`, `applicationId*`, `ai*`, `evidenceIds[]` | 202 `AI_GENERATE` |
 
 ### 3.15 billing (core)
@@ -489,7 +484,6 @@ fo-web은 기존 `/conversations`에 얹는다.
 
 - 오퍼(`/offers`)는 v1 계약에 있었지만 아직 만들지 않았다. 허브 "제안"(`/profiles/{id}/offer`)과는 다른 기능이다.
 - ai의 `routers/auth.py`, `billing.py`, `calendar.py`는 연결되어 있지 않다. 이 경로들은 core가 처리한다.
-- `POST /ai/keys/{provider}/test`는 스텁이다.
 - 문서 템플릿 enum은 `CLASSIC | MODERN | COMPACT`인데, 디자인은 심플·모던·크리에이티브·ATS 4종이다. 바꿔야 한다.
 - 공고별 적합도(공고 상세에 들어갈 때 고른 서류 기준으로 자동 계산)와 "이번 주 많이 본 공고"용 API가 없다.
 - 캘린더 이벤트 유형에 커피챗(`COFFEE_CHAT`)이 없다. 추가해야 한다.

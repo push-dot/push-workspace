@@ -34,7 +34,6 @@
 | 내 링크 (공고 링크·내 프로필 링크) | | ● | ● | `/me/links` (미확정) |
 | 소셜 (게시물·댓글·이미지) | | ● | ● (기업은 기업 배지) | `/posts`, `/uploads/images` |
 | 요금제 · 크레딧 사용량 · 업그레이드 | ● | ● (인앱 결제) | ● (기업만) | `/billing` |
-| AI 키 · 설정 | ● | | | `/ai/keys` |
 | 알림함 · 푸시 알림 | | ● | ● (알림함만) | `/me/notifications`, `/me/devices` |
 | 사업자 확인 | | | ● (기업) | `/companies/verify` (미확정) |
 | 담당자 관리 (초대·권한) | | | ● (기업) | `/companies/me/*` (미확정) |
@@ -56,7 +55,7 @@
 │  ├─ 캘린더 (/calendar) ─ Google 연동 (/integrations/google/callback)
 │  └─ 면접 준비 (/interview) — 추후
 ├─ Career Vault (/vault) — 추후
-└─ 설정 (/settings) ─ 요금제 (/settings/plan), AI 키, 언어·테마
+└─ 설정 (/settings) ─ 요금제 (/settings/plan), 언어·테마
 ```
 
 ## 3. 모바일 (fo-mobile, 신규)
