@@ -90,7 +90,7 @@ Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. �
 | 브라우저 | Playwright (SSRF 검증 프록시 경유). Workers에서는 Browser Rendering |
 | 문서 | ReportLab(PDF), zip+XML(DOCX), opendataloader-pdf / pypdf(텍스트 추출) |
 | RAG | pgvector top-k (evidence 청크) |
-| LLM | OpenRouter, OpenAI 호환, 역할별 모델 라우팅. 관리형만 쓰고 BYOK는 받지 않는다. 요금제별 관리형 모델(DeepSeek · Sonnet · Opus · Fable 최신), 추론 강도 `LOW\|MEDIUM\|HIGH\|MAX`(요금제가 정한다), 웹 검색은 OpenRouter `:online`, DeepSeek는 제공사 라우팅으로 미국 호스팅만 |
+| LLM | OpenRouter, OpenAI 호환, 역할별 모델 라우팅. AI는 항상 Push가 제공하는 모델로 돌린다. 요금제별 모델(DeepSeek · Sonnet · Opus · Fable 최신), 추론 강도 `LOW\|MEDIUM\|HIGH\|MAX`(요금제가 정한다), 웹 검색은 OpenRouter `:online`, DeepSeek는 제공사 라우팅으로 미국 호스팅만 |
 | 결제 | Stripe(fo-web 기업만. 개인 카드 결제는 없다) |
 | 인앱 결제 | App Store · Google Play 구독과 소모성 상품(개인 결제는 이것만). 서버 검증, App Store Server Notifications V2, Google Play RTDN. 클라이언트 라이브러리는 구현할 때 정한다 |
 | 메일 | 기업 이메일 인증 · 비밀번호 재설정 · 담당자 초대, 개인 회원 회사 인증 (Cloudflare Email Service) |

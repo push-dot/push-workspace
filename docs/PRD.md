@@ -79,7 +79,7 @@ UI는 한국어와 영어를 지원하고, 번역 리소스에는 ja와 vi도 �
 | AI | Python FastAPI, LangGraph, Playwright. Workers에서 VPS로 옮길 예정이다. |
 | DB | PostgreSQL 16 + pgvector (Neon) |
 | 인증 | 개인: Google·Apple·GitHub OAuth(PKCE, `push://auth/callback`으로 돌아온다)와 휴대폰 번호(모바일 앱과 웹 같음). Apple은 iOS에서 네이티브 Apple 로그인, Android와 웹에서 Apple 웹 로그인을 쓴다. OAuth로 로그인해도 휴대폰 번호를 받고, 휴대폰 번호로 개인 계정 중복을 막는다. Apple이 이메일을 가려도(릴레이 주소) 휴대폰 번호로 계정을 구분한다. 처음 가입하면 약관 동의 화면을 거친다. 개인은 이메일 가입이 없고, 이메일 인증은 회사 인증에만 쓴다. 기업: Google과 이메일·비밀번호(이메일 인증 필수, 웹만). 문자 발송 업체는 미결 |
-| AI 모델 | 관리형만 쓴다(OpenAI 호환, OpenRouter). 사용자 API 키(BYOK)는 받지 않는다. 모델은 요금제로 정한다([feature-spec.md](feature-spec.md) 9장). |
+| AI 모델 | AI는 항상 Push가 제공하는 모델로 돌린다(OpenAI 호환, OpenRouter). 모델은 요금제로 정한다([feature-spec.md](feature-spec.md) 9장). |
 | 결제 | 월 구독(USD)과 크레딧. 개인 FREE·PRO·ULTRA는 앱 인앱 결제(App Store·Google Play)만. 기업 Basic·Pro·Ultra는 fo-web Stripe(카드)만 |
 
 ## 7. 기능 요구사항
@@ -182,7 +182,7 @@ UI는 한국어와 영어를 지원하고, 번역 리소스에는 ja와 vi도 �
 - 승인 종류: `EVIDENCE_USE`, `DOCUMENT_FINALIZE`, `APPLICATION_SUBMIT`, `CLI_EXECUTE`
 - 승인은 기본 24시간 동안 유효하고, 대상 revision이 바뀌면 무효가 된다(`APPROVAL_STALE`).
 
-### 7.13 결제·AI 키 [D, 요금제·크레딧은 공통]
+### 7.13 결제 [D, 요금제·크레딧은 공통]
 요금제는 개인과 기업 두 갈래다. 따로 결제하고 따로 관리한다. 모두 월 구독이고 통화는 USD다. 연간 요금제는 없다.
 
 | 등급 | 개인 | 기업 |
