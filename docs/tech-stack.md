@@ -58,7 +58,7 @@ push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 | WebView | `react-native-webview` 14 (fo-web 상세 전용) |
 | 저장 | `expo-secure-store` (토큰) |
 | 푸시 알림 | `expo-notifications` (APNs, FCM), 딥링크로 화면 이동 |
-| 인증 | `expo-web-browser` (`openAuthSessionAsync`), `expo-crypto` (PKCE) |
+| 인증 | `expo-web-browser` (`openAuthSessionAsync`), `expo-crypto` (PKCE). iOS Apple 로그인은 네이티브(`expo-apple-authentication`), Android는 Apple 웹 로그인을 `expo-web-browser`로 연다 |
 | 파일·이미지 | `expo-document-picker`, `expo-image-picker`, `expo-image` |
 | 한글 검색 | `es-hangul` 2.4 (토스). 초성(`getChoseong`), 자모(`disassemble`), 영타 변환(`convertQwertyToHangul`) |
 | 스트리밍 | `expo/fetch` (`ReadableStream`) |
@@ -71,12 +71,13 @@ push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 |---|---|
 | 문구 | "~요" 존댓말, 버튼은 결과를 말하는 동사, 숫자 우선 |
 | 토큰 | 색 22개(라이트·다크), 글자 h1–c2, 간격 6단계, 모서리 6단계, 그림자 2개 |
-| 컴포넌트 | 15개. 기본 10개(버튼, 글래스 버튼, 칩, 배지, 세그먼트, 스위치, 입력창, 설정 그룹, 바텀 시트, 공고 카드), AI 채팅 5개(빠른 시작 알약, 입력창, 작업 상태 줄, 도구 줄, 승인 패널) |
+| 컴포넌트 | 15개. 기본 10개(버튼, 글래스 버튼, 칩, 배지, 세그먼트, 스위치, 입력창, 설정 그룹, 바텀 시트, 공고 카드), 에이전트 5개(빠른 시작 알약, 입력창, 작업 상태 줄, 도구 줄, 승인 패널) |
+| 상태 화면 | 로딩은 움직이지 않는 회색 스켈레톤(시머 없음). 큰 글씨(Dynamic Type)에서는 버튼과 칩도 함께 커진다 |
 | 아이콘 | 선 아이콘 38개, 3D 아이콘 13개(SVG 자리 표시). 최종 3D 렌더는 아직 없다 |
 | 로고 | 마스코트 로고와 "Push." 워드마크로 확정 |
 
 ### 2.5 fo-web 🆕
-Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. 데스크톱(5173)과 겹치지 않게 포트 5174를 쓰고, 에뮬레이터에서 접속할 수 있게 `host: true`로 띄운다. 앱 WebView 페이지와 개인·기업 웹을 함께 서빙한다. 웹 로그인은 개인 OAuth · 전화번호와 기업 이메일 · Google을 직접 처리한다(WebView는 토큰 주입). 기업 결제는 Stripe Checkout으로 보낸다.
+Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. 데스크톱(5173)과 겹치지 않게 포트 5174를 쓰고, 에뮬레이터에서 접속할 수 있게 `host: true`로 띄운다. 앱 WebView 페이지와 개인·기업 웹을 함께 서빙한다. 웹 로그인은 개인 OAuth(Google · Apple · GitHub) · 휴대폰 번호와 기업 이메일 · Google을 직접 처리한다(WebView는 토큰 주입). 기업 결제는 Stripe Checkout으로 보낸다.
 
 ## 3. 백엔드
 
@@ -93,7 +94,7 @@ Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. �
 | 결제 | Stripe(fo-web 기업만. 개인 카드 결제는 없다) |
 | 인앱 결제 | App Store · Google Play 구독과 소모성 상품(개인 결제는 이것만). 서버 검증, App Store Server Notifications V2, Google Play RTDN. 클라이언트 라이브러리는 구현할 때 정한다 |
 | 메일 | 기업 이메일 인증 · 비밀번호 재설정 · 담당자 초대, 개인 회원 회사 인증 (Cloudflare Email Service) |
-| 문자(SMS) | 개인 전화번호 인증. 업체는 미결 |
+| 문자(SMS) | 개인 휴대폰 번호 인증. 업체는 미결 |
 | 사업자 확인 | 국세청 사업자등록정보 진위확인 및 상태조회 API(공공데이터포털) |
 | 테스트 | core·gateway: `node --test`, `tsc --noEmit`. ai: pytest |
 
