@@ -36,7 +36,7 @@ fo-mobile (Expo) ── WebView ──► fo-web (Vite)
 
 | 저장소 | 역할 |
 | --- | --- |
-| [push-fe](https://github.com/push-dot/push-fe) | pnpm 워크스페이스. `apps/fo-mobile`(Expo), `apps/fo-web`(Vite), `packages/api-client`, `packages/shared`. 트리에는 `apps/fo-desktop`(Tauri)도 있다. |
+| [push-fe](https://github.com/push-dot/push-fe) | pnpm 워크스페이스. `apps/fo-mobile`(Expo), `apps/fo-web`(Vite), `packages/api-client`, `packages/shared`. |
 | [push-be](https://github.com/push-dot/push-be) | npm 워크스페이스. gateway Worker `push-be`, core Worker `push-be-core`, Python 서비스 `services/ai`, OpenAPI `packages/contracts`, SQL `db/migrations`. |
 | push-workspace | 서브모듈 핀, 제품 문서, 스모크 스크립트. `Makefile`과 `compose.yml`은 루트에 uvicorn과 Dockerfile이 있던 배치를 가정한다. |
 
@@ -81,14 +81,17 @@ git submodule update --init --recursive
 | 타깃 | 호출 |
 | --- | --- |
 | `make api` | `push-be`에서 `uvicorn app.main:app --host 0.0.0.0 --port 8080` |
-| `make web` | `npm --prefix push-fe run dev` |
-| `make desktop` | `push-fe/apps/fo-desktop`에서 `pnpm tauri dev` |
 | `make test` | `push-be`에서 `python -m pytest`, 이어서 push-fe의 `test`, `lint`, `typecheck`, `build` |
 | `make smoke` | `node scripts/smoke.mjs` |
 
-핀된 `push-be`의 FastAPI 엔트리는 `services/ai/src/app/main.py`이다. 로컬 Postgres와 uvicorn은 `push-be/infra/docker-compose.yml`이 띄운다. 그 트리에는 루트 Dockerfile과 `app` 패키지가 없다. `make api`와 `compose.yml`의 `build: ./push-be`는 그 경로를 가리킨다.
+웹과 모바일은 push-fe에서 패키지 필터로 띄운다.
 
-`make web`이 도는 push-fe 루트 `dev` 스크립트의 필터는 `@push/fo-desktop`이다. 웹 개발 서버는 `pnpm --filter @push/fo-web dev`이다.
+```bash
+pnpm --prefix push-fe --filter @push/fo-web dev
+pnpm --prefix push-fe --filter @push/fo-mobile start
+```
+
+핀된 `push-be`의 FastAPI 엔트리는 `services/ai/src/app/main.py`이다. 로컬 Postgres와 uvicorn은 `push-be/infra/docker-compose.yml`이 띄운다. 그 트리에는 루트 Dockerfile과 `app` 패키지가 없다. `make api`와 `compose.yml`의 `build: ./push-be`는 그 경로를 가리킨다.
 
 `compose.yml`은 Postgres 17, `env_file: .env`를 읽는 api 서비스, Caddy(80·443)를 정의한다. Caddy는 `deploy/Caddyfile`에서 `API_DOMAIN` 호스트를 `api:8080`으로 프록시한다.
 
