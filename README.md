@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="assets/logo/push-app-icon-dark-tile.png" width="128" alt="Push 마스코트" />
-</p>
-
 <h1 align="center">Push</h1>
 
 <p align="center">
@@ -132,7 +128,6 @@ node scripts/smoke.mjs
 
 ```
 push-workspace/
-├─ assets/logo/          마스코트. 다크 타일 PNG·SVG, 투명 마크 SVG
 ├─ deploy/Caddyfile      API_DOMAIN → api:8080
 ├─ docs/                 제품 설계 초안
 │  ├─ PRD.md
@@ -146,5 +141,3 @@ push-workspace/
 ├─ compose.yml
 └─ .env.example
 ```
-
-투명 배경 마크는 `assets/logo/push-mark-dark-transparent.svg`(밝은 화면)와 `assets/logo/push-mark-white-transparent.svg`(어두운 화면)이다. 위의 타일 이미지는 `assets/logo/push-app-icon-dark-tile.png`이고, 같은 그림의 SVG도 옆에 있다.
