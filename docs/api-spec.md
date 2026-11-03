@@ -107,7 +107,7 @@
 |---|---|---|
 | `GET /auth/{google\|github}/start` | `codeChallengeMethod*`=S256, `codeChallenge*`, `redirectUri*` (`push://auth/callback` 또는 `http://localhost:5173/auth/callback`), `accountType`(`PERSONAL\|EMPLOYER`, 기본 `PERSONAL`) | `{authorizationUrl, state, expiresAt}`. GitHub에 `EMPLOYER`면 400 `VALIDATION_ERROR` |
 | `GET /auth/{provider}/callback` | `code`, `state` | 302 → `{finalUri}?code=` |
-| Apple 로그인 (API 변경 필요) | Android·웹: `GET /auth/{provider}/start`의 provider에 `apple`을 추가한다(지금은 `google\|github`만 받는다). iOS: 네이티브 Apple 로그인이 준 identity token을 받는 경로가 필요하다 | Session. Apple이 이메일을 가리면 릴레이 주소를 받는다. 개인 계정은 휴대폰 번호로 구분하므로 이메일로 계정을 합치지 않는다 |
+| Apple 로그인 (API 변경 필요) | 웹: `GET /auth/{provider}/start`의 provider에 `apple`을 추가한다(지금은 `google\|github`만 받는다). Android 앱은 Apple 로그인을 쓰지 않는다. iOS: 네이티브 Apple 로그인이 준 identity token을 받는 경로가 필요하다 | Session. Apple이 이메일을 가리면 릴레이 주소를 받는다. 개인 계정은 휴대폰 번호로 구분하므로 이메일로 계정을 합치지 않는다 |
 | `POST /auth/exchange` | `code*`, `codeVerifier*` | `Session{accessToken, refreshToken, expiresIn, user}`. 제공사 이메일이 인증되지 않았으면 400 `EMAIL_NOT_VERIFIED`(GitHub은 `verified`인 기본 이메일만). 이메일이 다른 계정 종류로 이미 있으면 409 `EMAIL_TAKEN`(`details.accountType`) |
 | `POST /auth/email/signup` | `email*`, `password*`(8–128), `accountType*`(`EMPLOYER`), `displayName*`, `consentReference`(bool) | 202. 인증 메일을 보낸다. 이메일이 이미 있으면 409 `EMAIL_TAKEN`(`details.accountType`). 개인은 이메일 가입이 없다. 지금 계약은 `PERSONAL`도 받는다(API 변경 필요) |
 | `POST /auth/email/verify` | `token*` | Session. 이때 계정이 생긴다 |
@@ -125,7 +125,7 @@
 | `GET /conversations` | page, `applicationId` | page `Conversation{id, revision, applicationId, title, pinned, createdAt, updatedAt}` |
 | `POST /conversations` 🔑 | `title*`(≤300), `applicationId` | 201 Conversation |
 | `PATCH /conversations/{id}` | `expectedRevision*`, `title`, `pinned` | Conversation |
-| `POST /conversations/{id}/archive` 🔑 | `expectedRevision*` | Conversation. 이 대화에서만 쓰던 근거도 함께 보관한다. |
+| `POST /conversations/{id}/archive` 🔑 | `expectedRevision*` | Conversation. 이 대화에서만 쓰던 근거도 함께 보관한다. 보관을 해제해도 그 자료와 첨부는 돌아오지 않는다. |
 | `GET /conversations/{id}/messages` | page | page `Message{id, conversationId, role, text, attachments[], operationId, createdAt}` |
 | `POST /conversations/{id}/messages` 🔑 | `text*`(1–20000), `accessMode`(`ALWAYS_ASK\|AUTO\|BYPASS`. 생략하면 저장한 설정(`aiAccessMode`, 기본 `AUTO`). 예전 값 `SUGGEST`는 `AUTO`, `CONFIRM_ACTIONS`는 `ALWAYS_ASK`로 받는다), `context{documentId, versionId, evidenceIds[]}`, `ai` | 202 Operation `CHAT_MESSAGE` `{jobId}`. 403 `FEATURE_DISABLED` |
 | `POST /conversations/{id}/messages/stream` | 위와 같은 본문 | SSE |
@@ -490,14 +490,14 @@ fo-web은 기존 `/conversations`에 얹는다.
 - 문서 템플릿 enum은 `CLASSIC | MODERN | COMPACT`인데, 디자인은 심플·모던·크리에이티브·ATS 4종이다. 바꿔야 한다.
 - 공고별 적합도(공고 상세에 들어갈 때 고른 서류 기준으로 자동 계산)와 "이번 주 많이 본 공고"용 API가 없다.
 - 캘린더 이벤트 유형에 커피챗(`COFFEE_CHAT`)이 없다. 추가해야 한다.
-- 대화는 이름 바꾸기 · 고정(`PATCH`), 보관(`archive`), 공유(`POST /conversations/{id}/share`)가 있다. 대화 삭제, 보관한 대화 목록(`GET /conversations`는 보관한 대화를 빼고 준다), 보관 해제 API가 없다(API 변경 필요).
+- 대화는 이름 바꾸기 · 고정(`PATCH`), 보관(`archive`), 공유(`POST /conversations/{id}/share`)가 있다. 대화 삭제, 보관한 대화 목록(`GET /conversations`는 보관한 대화를 빼고 준다), 보관 해제 API가 없다(API 변경 필요). 보관 해제를 넣어도 대화에서 쓰던 자료와 첨부는 돌아오지 않는다.
 - 최근 검색어(모두 지우기 포함), 많이 찾는 검색어(1–8위), 많이 찾는 기술용 API가 없다.
-- `POST /billing/checkout`에 기업 요금제(`BASIC`)와 audience가 없다. 크레딧 추가 구매("크레딧 구매"), 요금제 낮추기, 매월 1일 크레딧 충전, 요금제별 AI 레버(모델·추론 강도·참고 범위) 적용, 역량 보완 프로젝트 개수 제한, 인앱 결제 검증·스토어 웹훅이 없다. 요금제 크레딧(월 300 / 5,000 / 20,000, 기업 3,000 / 15,000 / 30,000)을 마이크로크레딧 단위와 맞추는 일은 미결이다.
+- `POST /billing/checkout`에 기업 요금제(`BASIC`)와 audience가 없다. 크레딧 추가 구매("크레딧 구매"), 요금제 낮추기, 매월 1일 사용량을 다시 채움, 요금제별 AI 레버(모델·추론 강도·참고 범위) 적용, 역량 보완 프로젝트 개수 제한, 인앱 결제 검증·스토어 웹훅이 없다. 요금제 크레딧(월 300 / 5,000 / 20,000, 기업 3,000 / 15,000 / 30,000)을 마이크로크레딧 단위와 맞추는 일은 미결이다.
 - gateway `services/gateway/src/models.ts`의 `EFFORTS`에 `MAX`가 없다(ai·core에는 있다).
 - `POST /postings/{id}/apply`는 `documentIds`를 `application_events.payload`에만 남긴다. 스냅샷이 없다.
 - 이메일·비밀번호 가입은 계약(`packages/contracts`)에 `/auth/email/*`로 들어가 있지만 `accountType`에 `PERSONAL`도 받는다. 이메일 가입은 기업 계정만 쓰므로 막아야 한다(API 변경 필요).
-- 개인 휴대폰 번호 인증(인증번호 발송 · 확인), OAuth 로그인 뒤 휴대폰 번호 연결, 휴대폰 번호 기준 중복 가입 막기 API가 없다(API 변경 필요). 인증번호가 틀렸을 때와 만료됐을 때 화면 문구가 다르므로 오류 코드도 둘로 나눠야 한다. 문자 발송 업체는 미결이다.
-- OAuth 제공사에 Apple이 없다(`google | github`만). Apple 웹 로그인과 iOS 네이티브 Apple 로그인을 받아야 한다(API 변경 필요).
+- 개인 휴대폰 번호 인증(인증번호 발송 · 확인), OAuth 로그인 뒤 휴대폰 번호 연결, 휴대폰 번호 기준 중복 가입 막기 API가 없다(API 변경 필요). 인증번호가 틀렸을 때와 만료됐을 때 화면 문구가 다르므로 오류 코드도 둘로 나눠야 한다. 5번 잘못 입력하면 429(too many attempts)다. 이미 가입된 번호는 409 `PHONE_ALREADY_REGISTERED`(`details.existingProviders`)다. 휴대폰 번호로 가입한 사용자가 다른 기기에서 소셜로 로그인한 뒤 같은 번호를 입력하면 원래 계정으로 들어가고 그 소셜 로그인이 연결된다. 문자 발송 업체는 미결이다.
+- OAuth 제공사에 Apple이 없다(`google | github`만). 웹의 Apple 웹 로그인과 iOS 네이티브 Apple 로그인을 받아야 한다(API 변경 필요). Android 앱은 Apple 로그인을 쓰지 않는다.
 - 참고 데이터 동의는 가입에서 받지 않고 에이전트를 처음 열 때 `PUT /me/consents`로 받는다. `POST /auth/email/signup`의 `consentReference`는 빼야 한다(API 변경 필요). 동의하지 않은 사용자의 에이전트 요청을 막는 규칙이 없다(API 변경 필요, 4.9).
 - 가입 약관 동의(만 14세 이상 · 서비스 이용약관 · 개인정보 수집·이용, 선택 혜택·이벤트 알림)를 저장하는 API가 없다(API 변경 필요).
 - 서류 · 경력 · 내 링크를 지운 뒤 "되돌리기"를 처리할 방법이 없다. 토스트가 닫힌 뒤에 `DELETE`를 보낼지, 복구 API를 둘지 미결이다.
