@@ -35,7 +35,7 @@ push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 | 언어 | TypeScript |
 | 서버 상태 | TanStack Query 5 |
 | 클라이언트 상태 | zustand 5 |
-| i18n | i18next (ko, en, ja, vi), Locize(선택) |
+| i18n | i18next (ko, en), Locize(선택). 일본어·베트남어는 두지 않는다 |
 | 모니터링 | Sentry |
 
 ### 2.2 데스크톱 (fo-desktop)
