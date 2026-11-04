@@ -58,7 +58,7 @@ push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 | WebView | `react-native-webview` 14 (fo-web 상세 전용) |
 | 저장 | `expo-secure-store` (토큰) |
 | 푸시 알림 | `expo-notifications` (APNs, FCM), 딥링크로 화면 이동 |
-| 인증 | `expo-web-browser` (`openAuthSessionAsync`), `expo-crypto` (PKCE). iOS Apple 로그인은 네이티브(`expo-apple-authentication`), Android는 Apple 웹 로그인을 `expo-web-browser`로 연다 |
+| 인증 | `expo-web-browser` (`openAuthSessionAsync`), `expo-crypto` (PKCE). iOS Apple 로그인은 네이티브(`expo-apple-authentication`). Android 앱에는 Apple 버튼이 없다. 웹 Apple 로그인은 fo-web이 처리한다 |
 | 파일·이미지 | `expo-document-picker`, `expo-image-picker`, `expo-image` |
 | 한글 검색 | `es-hangul` 2.4 (토스). 초성(`getChoseong`), 자모(`disassemble`), 영타 변환(`convertQwertyToHangul`) |
 | 스트리밍 | `expo/fetch` (`ReadableStream`) |
