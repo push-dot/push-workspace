@@ -192,7 +192,7 @@ stage: `DISCOVERED, PREPARING, READY, APPLIED, SCREENING, INTERVIEW, OFFER, ACCE
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
 | `GET /documents` | page, `applicationId`, `kind` | page |
-| `POST /documents` 🔑 | `applicationId*`, `title*`, `kind*`(`RESUME\|PORTFOLIO\|COVER_LETTER`. 경력기술서 값이 없다(API 변경 필요)), `language*`, `template`(`CLASSIC\|MODERN\|COMPACT`) | 201 |
+| `POST /documents` 🔑 | `applicationId*`, `title*`, `kind*`(`RESUME\|PORTFOLIO\|COVER_LETTER`. 경력기술서 값이 없다(API 변경 필요)), `language*`, `template`(`CLASSIC\|MODERN\|COMPACT`. 게이트 라벨은 클래식·모던·컴팩트·ATS. 6장) | 201 |
 | `GET` · `PATCH /documents/{id}` | PATCH: `expectedRevision*`, `title`, `template`, `language` | Document |
 | `GET /documents/{id}/versions[/{versionId}]` | page | Version |
 | `POST /documents/{id}/versions` 🔑 | `expectedRevision*`, `content*`, `blocks[{id, text, evidenceRefs[{evidenceId, start, end}]}]`, `changeNote` | 201 `{document, version}` |
@@ -487,11 +487,12 @@ fo-web은 기존 `/conversations`에 얹는다.
 
 - 오퍼(`/offers`)는 v1 계약에 있었지만 아직 만들지 않았다. 허브 "제안"(`/profiles/{id}/offer`)과는 다른 기능이다.
 - ai의 `routers/auth.py`, `billing.py`, `calendar.py`는 연결되어 있지 않다. 이 경로들은 core가 처리한다.
-- 문서 템플릿 enum은 `CLASSIC | MODERN | COMPACT`인데, 디자인은 심플·모던·크리에이티브·ATS 4종이다. 바꿔야 한다.
+- 에이전트 확인 카드의 템플릿은 클래식 · 모던 · 컴팩트 · ATS · 그만하기다. "크리에이티브"는 카드에 없다. 저장할 때 클래식은 심플, 컴팩트는 ATS, 모던은 모던이다. `POST /documents`의 `template` enum(`CLASSIC | MODERN | COMPACT`)을 이 게이트·저장 매핑에 맞춘다(API 변경 필요).
 - 공고별 적합도(공고 상세에 들어갈 때 고른 서류 기준으로 자동 계산)와 "이번 주 많이 본 공고"용 API가 없다.
 - 캘린더 이벤트 유형에 커피챗(`COFFEE_CHAT`)이 없다. 추가해야 한다.
 - 대화는 이름 바꾸기 · 고정(`PATCH`), 보관(`archive`), 공유(`POST /conversations/{id}/share`)가 있다. 대화 삭제, 보관한 대화 목록(`GET /conversations`는 보관한 대화를 빼고 준다), 보관 해제 API가 없다(API 변경 필요). 보관 해제를 넣어도 대화에서 쓰던 자료와 첨부는 돌아오지 않는다.
-- 최근 검색어(모두 지우기 포함), 많이 찾는 검색어(1–8위), 많이 찾는 기술용 API가 없다.
+- 최근 검색(모두 지우기 포함. "최근 검색어"라고 쓰지 않는다), 많이 찾는 검색어(1–8위), 많이 찾는 기술용 API가 없다.
+- 빠른 시작 13개(디자인 12개와 점수 올리기)는 모두 실제 기능이다. 개인 intent는 `match_posting` · `fit` · `gaps` · `experience` · `boost` 다섯 개뿐이고, 마감 임박 공고 정리 · 커피챗 제안 쓰기 · 허브 프로필 다듬기를 포함한 나머지 빠른 시작의 의도와 도구를 디자인에 맞춰 만든다(API 변경 필요).
 - `POST /billing/checkout`에 기업 요금제(`BASIC`)와 audience가 없다. 크레딧 추가 구매("크레딧 구매"), 요금제 낮추기, 매월 1일 사용량을 다시 채움, 요금제별 AI 레버(모델·추론 강도·참고 범위) 적용, 역량 보완 프로젝트 개수 제한, 인앱 결제 검증·스토어 웹훅이 없다. 요금제 크레딧(월 300 / 5,000 / 20,000, 기업 3,000 / 15,000 / 30,000)을 마이크로크레딧 단위와 맞추는 일은 미결이다.
 - gateway `services/gateway/src/models.ts`의 `EFFORTS`에 `MAX`가 없다(ai·core에는 있다).
 - `POST /postings/{id}/apply`는 `documentIds`를 `application_events.payload`에만 남긴다. 스냅샷이 없다.
