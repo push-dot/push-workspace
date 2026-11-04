@@ -205,6 +205,8 @@ stage: `DISCOVERED, PREPARING, READY, APPLIED, SCREENING, INTERVIEW, OFFER, ACCE
 | `GET /documents/{id}/versions/{versionId}/export` | `format`(`PDF\|DOCX`) | 파일. 확정된 버전만 가능 |
 | `POST` · `GET /documents/{id}/exports` 🔑 | `versionId*`, `format*`, `rendererVersion*` | 201 Export |
 | `POST /documents/{id}/exports/{exportId}/result` 🔑 | `sha256*`, `byteLength*`, `status*`, `pageCount`, `validation{koreanText, links, atsText}` | Export |
+| `POST /documents/{id}/profile` 🔑 | `target`(`hub\|application`, 없으면 `application`), `applicationId`, `expectedRevision` | 200. 기본은 지원 서류용 프로필(허브형, kind `HUB_PROFILE`). `applicationId`가 없으면 허브 프로필(기본)을 고치지 않는다. `applicationId`가 있으면 그 지원에 연결한다. `target=hub`만 `POST /documents/{id}/base-profile`과 같은 쓰기로 허브 프로필을 바꾼다 |
+| `POST /documents/{id}/base-profile` 🔑 | `{}` | 200 `{documentId, profileUserId}`. 서류 주인만. 제목·소개·경력·기술 스택을 바꾸고, 링크 제목이 있으면 링크도 바꾼다. 한 번에 써서 실패하면 예전 프로필이 남는다. 다시 호출해도 같다. 확인 제목 "이 프로필을 기본 프로필로 설정할까요?" 본문 "허브에 보이는 내 프로필이 이 내용으로 바뀌어요." 버튼 "설정" / "취소". 토스트 "기본 프로필로 설정했어요." 전환 시트에는 기본/지원용 선택 탭이 없다 |
 
 ### 3.9 career-evidence · sources (ai) — career-evidence는 추후, sources는 이번 범위
 | 메서드·경로 | 요청 | 응답 |
