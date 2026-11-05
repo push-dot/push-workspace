@@ -1,4 +1,4 @@
-.PHONY: api web test smoke
+.PHONY: api web test
 
 api:
 	cd push-be && uvicorn app.main:app --host 0.0.0.0 --port 8080
@@ -12,6 +12,3 @@ test:
 	npm --prefix push-fe run lint
 	npm --prefix push-fe run typecheck
 	npm --prefix push-fe run build
-
-smoke:
-	node scripts/smoke.mjs
