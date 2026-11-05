@@ -1,13 +1,10 @@
-.PHONY: api web desktop test smoke
+.PHONY: api web test smoke
 
 api:
 	cd push-be && uvicorn app.main:app --host 0.0.0.0 --port 8080
 
 web:
 	npm --prefix push-fe run dev
-
-desktop:
-	cd push-fe/apps/fo-desktop && pnpm tauri dev
 
 test:
 	cd push-be && python -m pytest

@@ -6,7 +6,7 @@
 
 ---
 
-**Push**는 개인용 모바일 앱, 개인·기업 웹, 그리고 그 뒤의 API로 이루어진다. 모바일에서 공고를 보고 AI 채팅으로 대화를 이어 가고, 웹에서는 같은 계정의 공고·허브·소셜과 기업 채용 업무를 다룬다. 이력서 워크플로는 서버의 단계 게이트를 거치고, 근거 검색은 pgvector로 한다.
+**Push**는 개인용 모바일 앱, 개인·기업 웹, 그리고 그 뒤의 API로 이루어진다. 모바일에서 공고를 보고 에이전트(AI 채팅)로 대화를 이어 가고, 웹에서는 같은 계정의 공고·허브·소셜과 기업 채용 업무를 다룬다. 이력서 워크플로는 서버의 단계 게이트를 거치고, 근거 검색은 pgvector로 한다.
 
 이 저장소(`push-workspace`)는 제품 문서와 서브모듈 핀을 둔다. 앱 코드는 [push-fe](https://github.com/push-dot/push-fe), API 코드는 [push-be](https://github.com/push-dot/push-be)에 있다. `.gitmodules`의 브랜치는 `develop`이다.
 
@@ -32,7 +32,7 @@ fo-mobile (Expo) ── WebView ──► fo-web (Vite)
 
 | 저장소 | 역할 |
 | --- | --- |
-| [push-fe](https://github.com/push-dot/push-fe) | pnpm 워크스페이스. `apps/fo-mobile`(Expo), `apps/fo-web`(Vite), `packages/api-client`, `packages/shared`. |
+| [push-fe](https://github.com/push-dot/push-fe) | pnpm 워크스페이스. `apps/fo-mobile`(Expo), `apps/fo-web`(Vite), `packages/api-client`, `packages/design-system`, `packages/shared`. 데스크톱 앱은 [push-desktop](https://github.com/push-dot/push-desktop)으로 옮겼고 서브모듈이 아니다. |
 | [push-be](https://github.com/push-dot/push-be) | npm 워크스페이스. gateway Worker `push-be`, core Worker `push-be-core`, Python 서비스 `services/ai`, OpenAPI `packages/contracts`, SQL `db/migrations`. |
 | push-workspace | 서브모듈 핀, 제품 문서, 스모크 스크립트. `Makefile`과 `compose.yml`은 루트에 uvicorn과 Dockerfile이 있던 배치를 가정한다. |
 
@@ -42,7 +42,7 @@ fo-mobile (Expo) ── WebView ──► fo-web (Vite)
 
 | 영역 | 선택 |
 | --- | --- |
-| 모바일 | Expo SDK 58, React Native 0.88, Expo Router, React 19.3, TanStack Query 5, Zustand 5 |
+| 모바일 | Expo SDK 58, React Native 0.88, Expo Router(Native Tabs, Drawer), React 19.3, TanStack Query 5, Zustand 5, `@expo/ui`, Noto Sans KR |
 | 웹 | Vite 6, React 19.1, React Router 7, TanStack Query 5. 개발 서버 포트 5174 |
 | 공통 클라이언트 | TypeScript, pnpm 11, Turborepo 2, ky(`@push/api-client`), es-hangul(`@push/shared`) |
 | 엣지 | Cloudflare Workers. gateway npm 패키지는 `push-be-front`, Worker 이름은 `push-be`. core 패키지와 Worker 이름은 `push-be-core`. Wrangler 4, TypeScript 7, `@neondatabase/serverless` |
@@ -53,7 +53,7 @@ fo-mobile (Expo) ── WebView ──► fo-web (Vite)
 ## 이 저장소에서 하는 일
 
 - `push-fe`, `push-be`를 서브모듈로 고정한다.
-- `docs/`에 제품 설계 초안을 둔다. 버전 2.0, 작성일 2026-10-20, 상태 초안이다. 문서에는 코드에 아직 없는 항목이 `미확정`으로 남아 있다. 동작의 기준은 각 서브모듈 코드다.
+- `docs/`에 제품 설계 문서를 둔다. `PRD.md`, `feature-map.md`, `feature-spec.md`, `tech-stack.md`는 버전 2.0(2026-10-20) 초안이고, `api-spec.md`는 버전 2.1(2026-11-05)이다. 문서에는 코드에 아직 없는 항목이 `미확정`으로 남아 있다. 동작의 기준은 각 서브모듈 코드다.
 - `scripts/smoke.mjs`로 로컬 API를 한 바퀴 호출한다.
 - `Makefile`, `compose.yml`, `deploy/Caddyfile`을 둔다.
 
@@ -136,6 +136,7 @@ push-workspace/
 │  ├─ api-spec.md
 │  └─ tech-stack.md
 ├─ scripts/smoke.mjs
+├─ .github/workflows/policy.yml   develop PR의 브랜치·제목 검사
 ├─ .gitmodules           push-fe, push-be (develop)
 ├─ Makefile
 ├─ compose.yml

@@ -1,4 +1,6 @@
 .DS_Store
+node_modules/
+.pytest_cache/
 .env
 .env.*
 !.env.example
@@ -6,9 +8,7 @@
 .artifacts/
 output/
 .playwright-cli/
-push-be/server
 
-design/
 .omo/
 _workspace/
 graphify-out/
