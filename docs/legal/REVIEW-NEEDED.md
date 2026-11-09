@@ -14,7 +14,7 @@
 | push-be #240: 지원, 제안 수락, 지원자 단계 변경(불합격 포함)은 모든 실행 방식에서 승인 필요(D1), 기업 이메일 가입의 약관 동의 기록(D13), 참고 데이터 문장의 링크(URL) 가림(D3) | 약관 제9조 제3항, 제10조 제2항, 처리방침 4항 2, 5항 3 | 열림 |
 | push-be #241: `PAYMENTS_ENABLED`(프로덕션 `0`)가 결제, 충전, 앱 결제 확인을 막음(D11). #242: 크레딧 충전 환불이 요금제를 내리지 않음(D16, 환불한 크레딧은 회수하지 않으므로 문서에 "환불하면 크레딧을 뺀다"고 쓰지 않음) | 약관 제4조, 제11조 제7항, 제13조 제6항 | 열림 |
 | push-be #243(보관 기간 삭제 작업, Traefik·journald), #244(로그아웃 시 푸시 토큰 삭제, 탈퇴 유예 중 푸시 중지), #245(OpenRouter 고정, Exa, OpenCode 삭제): 기업 30일 삭제, 휴대폰 인증 30일, 만료 토큰·미인증 가입 1일, 결제 기록 탈퇴 후 거래일부터 5년, 신고 3년, 로그아웃 시 푸시 토큰 삭제, 탈퇴 유예 중 푸시 중지, OpenRouter `only`/`allow_fallbacks: false`/`data_collection: "deny"`, 웹 검색 엔진 Exa 고정, OpenCode 경로 삭제(D4, D6, D7) | 처리방침 1·6·7·8항, 약관 제22조 | 열림 |
-| #243의 인프라 변경을 VPS에 적용: Traefik 접근 로그에서 IP와 헤더 제거, journald `MaxRetentionSec=14day`. **운영자가 VPS에서 `harden.sh`를 다시 실행하고 Traefik을 재배포해야 적용됩니다.** | 처리방침 1항(서버 접속 기록에 IP 없음), 6항(서버 보안 기록 14일) | 운영자 작업 |
+| push-be #243과 #250(`fix/retention-truth`)의 인프라 변경을 VPS에 적용: Traefik 접근 로그에서 IP와 헤더 제거(prod 배포 때 적용, staging은 prod 프록시를 같이 씀), journald `MaxFileSec=1day`, fail2ban·auth·kern·wtmp·btmp·audit 로그 14일. **#250 머지 뒤 운영자가 hPanel 콘솔에서 root로 `harden.sh`를 다시 실행해야 "서버 보안 기록 14일"이 참이 됩니다.** 그 전에는 fail2ban·rsyslog 로그가 최대 약 5주, wtmp·btmp가 최대 2달 남습니다. 절차는 `prod-env-changes.md` 19행. **이 작업 전에는 문서 시행(출시)을 보류하세요.** | 처리방침 1항(서버 접속 기록에 IP 없음), 6항(서버 보안 기록 14일) | 운영자 작업 |
 
 ## 변호사 검토가 출시 조건인 이유
 
@@ -89,7 +89,7 @@
 | 650 Industries, Inc. (Expo) | 미국 | expo.dev/contact (이메일 없음) | — |
 
 문서에 넣지 않은 외부 호출 (바뀌면 추가):
-- 임베딩: 기본은 VPS의 자체 TEI(bge-m3). `EMBEDDING_PROVIDER=api`로 바꾸면 OpenRouter를 거쳐 OpenAI로 텍스트를 보내므로 8항에 OpenAI를 추가해야 합니다.
+- 임베딩: 기본은 VPS의 자체 TEI(bge-m3, `EMBEDDING_PROVIDER=tei`). 지금 꺼져 있는 경로이므로 표에는 넣지 않았습니다(켜지 않는 동안 넣으면 거짓). `api`로 바꾸면 OpenRouter를 거쳐 OpenAI(`openai/text-embedding-3-small`, 제공사 openai 고정)로 텍스트를 보내므로, **켜기 전에** 7·8항에 OpenAI를 추가하고 문서를 새로 시행해야 합니다.
 - Gmail 연동(`GOOGLE_GMAIL_BETA_ENABLED`): 꺼져 있음. 켜면 메일 발신자·제목·요약을 저장하므로 1항에 추가.
 - Discord 알림 웹훅: 운영 알림의 이름과 수치(작업 수, 지연 시간 등)만 보내고 이용자 정보는 보내지 않아(`queue/alerts.py:24-81`) 수탁자로 넣지 않았습니다. 브리프 D7은 넣으라고 했지만 개인정보를 맡기지 않으므로 뺐습니다(decisions.tsv).
 - 국세청 사업자 상태 조회(`api.odcloud.kr`): 7항의 제3자 제공 표에 넣음. 위탁으로 볼지 변호사 확인.
