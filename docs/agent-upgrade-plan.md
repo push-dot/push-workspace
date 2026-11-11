@@ -1,4 +1,4 @@
-> 상태: 오너 승인 대기 (2026-11-09 작성). 오너 답변과 2차 지시를 반영한 Fable 5.1 계획 에이전트의 제출본이다. 승인 전에는 확정 사양이 아니다. 구현은 Claude Design 보드가 나온 뒤 시작한다.
+> 상태: 2026-11-11 개정. 이 문서의 D절(봇을 대화 컬럼으로만 두고 테이블을 만들지 않음, `POST /api/v1/conversations/bots`, 기존 개인 대화 삭제, 총괄 봇 온보딩, 첫 회사 봇을 온보딩에서 제외)은 폐기한다. 구현된 계약은 `docs/api-spec.md` 3.17과 `0052_bots.sql`이다. 화면 PR은 아직 없다. push-fe #218은 `packages/api-client`의 `api.bots`와 `apps/fo-mobile/src/features/bots/api`의 fetch, 캐시, 에러, React Query 훅만 추가했다.
 > 원문 요청과 영상 자료: `push-design/work/agent-upgrade/` (OWNER-REQUEST.md, video/).
 
 # 에이전트 페이지 업그레이드 계획 (개인 앱, 앱 → 웹)
@@ -56,7 +56,7 @@
 | R2 | 회사마다 한 개 에이전트 | 회사 1곳에 봇 1개를 둔다. 봇마다 대화 1개가 메신저처럼 계속 이어진다. | 오너 답 |
 | R3 | 기존 채팅 | 기존 개인 대화를 모두 지운다. 이관하지 않는다. 기업 대화(`company_id` 있음)는 건드리지 않는다. | 오너 답 |
 | R4 | 총괄 봇 | 총괄 봇이 맡는 일은 표 아래에 적는다. 에이전트 홈 맨 위에 고정한다. | 오너 답 |
-| R5 | 첫 진입 온보딩 | 총괄 봇 대화에서 진행한다. 순서는 표 아래에 적는다. 끝나도 에이전트 홈으로 이동하지 않고 총괄 봇 대화에 남는다. 첫 회사 봇 만들기는 온보딩에 넣지 않는다. 온보딩 완료는 참고 데이터 동의가 기록된 상태다. | 오너 답 |
+| R5 | 첫 진입 온보딩 | 총괄 봇 대화에서 진행한다. 순서는 표 아래에 적는다. 끝나도 에이전트 홈으로 이동하지 않고 총괄 봇 대화에 남는다. 첫 회사 봇 만들기는 온보딩에 넣지 않는다. 온보딩 완료는 참고 데이터 동의가 기록된 상태다. (D0에서 폐기) | 오너 답 |
 | R6 | 약관 동의 UI 제거 | 온보딩으로 옮기는 것은 에이전트 참고 데이터 동의만이다. 가입 약관 화면(만14세·이용약관·개인정보 필수, 마케팅 선택)과 그 기록 흐름은 그대로 둔다. 그래서 #175, #181과 겹치지 않는다. | 오너 답 |
 | R7 | 평소 진입 = 사이드바 | 에이전트 탭 루트를 에이전트 홈(옛 사이드바)으로 바꾼다. 채팅은 이미 탭 밖 Stack에 있는 `chat/[id]`라서, 들어가면 탭바가 가려지고 뒤로가기가 생긴다. 온보딩 전에는 루트 위에 총괄 봇 대화를 push한다. 그래서 뒤로 가면 에이전트 홈이 나온다. | 코드 사실 |
 | R8 | Header 플러스 | 에이전트 홈 헤더 오른쪽에 두고, 누르면 새 회사 봇을 만든다. 입력은 회사 이름과 공고 링크(선택)다. 같은 회사 봇이 있으면 그 봇으로 이동한다. 한도에 닿으면 업그레이드 안내를 띄운다. | 오너 답 |
@@ -66,7 +66,7 @@
 | R12 | 상세 모달 | 아이템이나 '채팅에서 쓰기'를 누르면 상세 시트가 열린다. 시트에는 정보와 [채팅에서 쓰기]가 있고, 종류별 버튼이 붙는다(서류 [서류로 들어가기], 링크 [바로가기], 북마크 [공고로 이동]). 오른쪽 위 휴지통(44)을 누르면 확인 prompt가 뜨고, [삭제]를 누르면 지운다. | 오너 원문 |
 | R13 | 삭제 방식 | 종류별 기존 동작을 따른다. 표 아래에 적는다. | 오너 답 |
 | R14 | 채팅에서 쓰기 대상 | 에이전트 홈에서 누르면 매번 봇 고르기 시트를 띄운다(총괄 + 회사 봇). 고른 봇 대화가 입력창에 자료가 붙은 채로 열린다. | 오너 답 |
-| R15 | 플랜 제한 | 회사 봇 한도는 FREE 3, PRO 20, ULTRA 무제한이다(총괄 봇 제외). 다운그레이드로 한도를 넘으면 기존 봇은 유지하고 새로 만들기만 막는다. 병렬 위임은 ULTRA만 되고 동시 최대 3개, 나머지는 차례로 돈다. 서버가 강제한다. | 오너 답 |
+| R15 | 플랜 제한 | 회사 봇 한도는 FREE 3, PRO 20, ULTRA 무제한이다(총괄 봇 제외). 다운그레이드로 한도를 넘으면 기존 봇은 유지하고 새로 만들기만 막는다. 병렬 위임은 ULTRA만 되고 동시 최대 3개, 나머지는 차례로 돈다(위임 D0에서 폐기, 한도만 #275·#276 반영). 서버가 한도를 강제한다. | 오너 답 |
 | R16 | 범위 | 개인 앱 fo-mobile만 바꾼다. 웹(fo-web 개인)은 앱 다음에 같은 구조로 한다. 기업 에이전트와 fo-desktop은 제외한다. | 오너 답 |
 
 R1 세 갈래:
@@ -75,12 +75,12 @@ R1 세 갈래:
 - (c) 채팅 안 봇 상태 UI의 왼쪽 로고만 현재 상태 모션을 한다.
 
 R4 총괄 봇이 맡는 일:
-- 온보딩
+- 온보딩 (D0에서 폐기)
 - 회사 봇 생성
 - 회사 봇 지휘: 일을 넘기고 결과를 받는다. 동시 실행은 ULTRA만 된다.
 - 회사와 무관한 일(이력서, 공고 찾기 등)
 
-R5 온보딩 순서:
+R5 온보딩 순서 (D0에서 폐기):
 1. 참고 데이터 동의(필수, 지금의 동의 시트를 대체)
 2. 선택 단계: 이력서 올리기, 관심 직무, 건너뛰기 가능
 
@@ -189,6 +189,21 @@ R13 종류별 삭제 동작:
 - **동작 줄이기:** 기존 `useReduceMotion`(`features/chat/hooks.ts:4-12`)을 쓴다. 켜져 있으면 루프 없이 상태별 정지 표정만 보여 준다. 상태는 `accessibilityLabel`로도 알린다.
 - **성능 기준:** 60fps(iOS), 루프 중 JS 스레드 사용 0, 백그라운드에서 루프 0.
 
+## D0. 2026-11-11에 폐기한 서버 계획
+
+| 옛 계획 | 지금 코드 |
+|---|---|
+| 봇 테이블을 만들지 않고 `conversations.bot_kind` | `bots` 테이블, `conversations.bot_id` nullable |
+| 기존 개인 대화 삭제 | 삭제·백필 없음 |
+| `POST /api/v1/conversations/bots`, `GET /conversations?kind=bots` | `/api/v1/bots` |
+| 같은 회사면 기존 봇 반환 | 회사 이름 유니크 없음. POST마다 새 행 |
+| 봇 삭제 시 대화도 삭제 | 봇만 `deleted_at` |
+| 종류 `chief` | 종류 `push`, 표시 이름 Push Bot |
+| 첫 진입은 총괄 봇 온보딩, 회사 봇 생성은 온보딩 밖 | 제품 결정: 퀵스타트는 회사 봇 첫 진입 온보딩. 단계 미정 |
+| 이름 변경 없음 | `PATCH`로 `displayName` 변경 가능 |
+
+유지: 회사 봇 한도 FREE 3 / PRO 20 / ULTRA 무제한, Push 봇은 한도 밖, 한도를 넘긴 기존 봇은 지우지 않고 생성만 막음(#275 API, #276 ULTRA `null`/`??` 버그 수정).
+
 ## D. 데이터와 서버 변경 (push-be)
 
 1. **봇 = 대화 한 줄.** 봇 테이블을 새로 만들지 않는다.
@@ -238,13 +253,13 @@ R13 종류별 삭제 동작:
 | 순서 | 저장소 | PR | 내용 | 검증 |
 |---|---|---|---|---|
 | 0 | push-design | 보드 요청 | F-4 보드 7개 요청과 수령, decisions.tsv 기록 | 보드 수령 |
-| 1 | push-be | feat(core-api): bots on conversations | 봇 컬럼과 인덱스, contracts, 봇 생성/목록, 플랜 한도, 읽음 | `npm test`, `npm run typecheck`, migration test, `openapi-routes.test`, `schema_checks.sql` |
+| 1 | push-be | feat(core-api): bots on conversations | 일부 머지: push-be #275·#276, push-fe #218 | `npm test`, `npm run typecheck`, migration test, `openapi-routes.test`, `schema_checks.sql` |
 | 2 | push-be | feat(gateway): bot liveState and content search | 목록 `liveState`/`unread`, `q` 확장 | gateway node test |
 | 3 | push-be | feat(ai): chief bot delegation | 총괄 도구, 위임과 결과 이벤트, ULTRA 동시 3 | `uv run python -m pytest`(새 delegation 테스트, fakes) |
 | 4 | push-be | feat(core-api): materials list | `/me/materials` | node test |
 | 5 | push-be | chore(db): drop old personal chats | 삭제 마이그레이션(staging) | 전후 개수 쿼리, Push 서류·지원 수 불변 |
 | 6 | push-fe | feat(app): mascot motion and bot status row | `stateOf` 순수 함수, `AnimatedMascot`(5상태, reduce motion), 채팅 봇 상태 UI, 중간 과정 항목 제거(C-3 표), ✻ `StatusRow` 제거, hydrate 동일 규칙 | `stateOf` 단위 테스트, reducer 테스트(중간 항목 미표시), iOS 60fps와 JS 스레드 0(Perf Monitor), Maestro 채팅 flow와 visual yaml 갱신, MascotStates·ChatBotStatus 보드 비교 |
-| 7 | push-fe | feat(api-client): bots and materials | 타입과 엔드포인트 | typecheck, 단위 테스트 |
+| 7 | push-fe | feat(api-client): bots and materials | 일부 머지: push-be #275·#276, push-fe #218 | typecheck, 단위 테스트 |
 | 8 | push-fe | feat(app): agent home and bot chat header | 아래 별도 목록 참고 | Maestro agent-home, bot-new, header-dot flow, iOS gate 정확한 head |
 | 9 | push-fe | feat(app): chief onboarding | 동의 카드와 선택 단계, 진입 라우팅, `ConsentSheet` 자동 띄우기 제거(403은 카드로 연결) | Maestro 새 계정/기존 동의 계정 2갈래, 서버 기록 확인 |
 | 10 | push-fe | feat(app): materials modal | 자료 모달, 상세 시트, 삭제 prompt, 봇 고르기, 입력창 첨부, 옛 docs/links/bookmarks 모달 제거 | Maestro materials, 100개 이상 mock 무한 스크롤 |
@@ -356,7 +371,7 @@ Contrarian: "사용자는 대화 기록을 원한다"를 뒤집어, 회사별 �
 | 헤더 불빛 | 초록(새 메시지), 빨강(제한) |
 | 자료 | 서류(업로드 파일, Push 서류), 북마크(공고), 링크 |
 | 에이전트 홈 | 옛 사이드바. 에이전트 탭 루트 |
-| 온보딩 | 총괄 봇 첫 대화. 참고 데이터 동의가 기록되면 끝 |
+| 온보딩 | 총괄 봇 첫 대화. 참고 데이터 동의가 기록되면 끝 (D0에서 폐기) |
 
 - **Near-miss:**
   - 회사 봇의 회사는 `companies`, `applications.company`와 다르다.

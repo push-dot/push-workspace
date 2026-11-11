@@ -1,8 +1,8 @@
 # Push API 명세
 
-- 버전: 2.1
-- 작성일: 2026-11-05
-- 기준: push-be `develop` `a93bee0` (`fix(ai): clean up the agent result card`, #218), push-fe `develop` `60b9725`. 코드가 OpenAPI(`packages/contracts/openapi.json`)와 다르면 코드를 따른다.
+- 버전: 2.2
+- 작성일: 2026-11-11
+- 기준: push-be `develop` `d73240d`, push-fe `develop` `193dbd5`. 코드가 OpenAPI(`packages/contracts/openapi.json`)와 다르면 코드를 따른다.
 - 이전 버전: `docs/api.md` (커밋 `72fe539`에서 삭제)
 - 관련 문서: [PRD.md](PRD.md), [feature-spec.md](feature-spec.md)
 
@@ -14,7 +14,7 @@
 | 담당 | 위치 | 처리하는 요청 |
 |---|---|---|
 | gateway | `services/gateway` | `/healthz`, `GET /auth/me`, 대화 목록·메시지 조회, `GET .../messages/stream/active`, 메시지 스트림의 SSE, `GET /ai/models`, `GET /integrations/job-sites` |
-| core | `services/core-api` | `isCore`에 있는 경로. auth, 대화 쓰기, 서류, 출처, 이미지, 결제, 채용, 허브, 소셜, 회사, 캘린더, Google 연동 |
+| core | `services/core-api` | `isCore`에 있는 경로. auth, 대화 쓰기, 서류, 출처, 이미지, 결제, 채용, 허브, 소셜, 회사, 캘린더, Google 연동, `/api/v1/bots` 및 `/api/v1/bots/`로 시작하는 경로(`services/gateway/src/routes/owner.ts`) |
 | ai | `services/ai` | `isPython`에 있는 실행 경로만. 생성, 이력서 실행, 공고 분석, 면접 준비, 문서 개정·내보내기, 근거 가져오기, 프로필 초안, 블루프린트, 검증, operation, approval, 대화 공유·산출물 목록 |
 
 - `/internal`과 `/internal/*`는 gateway가 넘기지 않는다.
@@ -93,12 +93,12 @@
 | 200 / 201 / 202 / 204 | 성공: 조회·수정 / 생성 / 비동기 접수 / 본문 없음 |
 | 400 | `VALIDATION_ERROR`, `EMAIL_NOT_VERIFIED`(exchange), `PHONE_CODE_INVALID`, `PHONE_CODE_EXPIRED` |
 | 401 | `UNAUTHENTICATED`, `TOKEN_EXPIRED`, `INVALID_CREDENTIALS` |
-| 403 | `FEATURE_DISABLED`, `FORBIDDEN`, `EMAIL_NOT_VERIFIED`(로그인), `CONSENT_REQUIRED`, `BUSINESS_NOT_VERIFIED`, `PLAN_REQUIRED`, `SEAT_LIMIT` |
+| 403 | `FEATURE_DISABLED`, `FORBIDDEN`, `EMAIL_NOT_VERIFIED`(로그인), `CONSENT_REQUIRED`, `BUSINESS_NOT_VERIFIED`, `PLAN_REQUIRED`, `SEAT_LIMIT`, `BOT_LIMIT`(회사 봇 생성 한도. `details`: `{limit, plan}`), `DEFAULT_BOT_PROTECTED`(Push 봇 삭제·보호) |
 | 404 | `NOT_FOUND` (ai는 405도 `NOT_FOUND`로 돌려준다) |
 | 409 | `REVISION_CONFLICT`, `INVALID_TRANSITION`, `APPROVAL_REQUIRED`, `APPROVAL_STALE`, `UNSUPPORTED_CLAIM`, `INTEGRATION_REQUIRED`, `IDEMPOTENCY_CONFLICT`, `CONFLICT`, `EMAIL_TAKEN`, `PHONE_TAKEN`, `PHONE_ALREADY_REGISTERED`, `ADMIN_TRANSFER_REQUIRED`, `ALREADY_SUBSCRIBED`, `COMPANY_EXISTS` |
 | 413 | `PAYLOAD_TOO_LARGE` |
 | 422 | `VERIFICATION_FAILED`, `DOCUMENT_NOT_FINALIZED`, `BUSINESS_NOT_VERIFIED`, `VALIDATION_ERROR`(설정 enum) |
-| 429 | `RATE_LIMITED`, `QUEUE_BUSY` |
+| 429 | `RATE_LIMITED`(`details.retryAfterSec`. 봇 생성 락 대기 종료·분당 한도 등. 휴대폰 재발송 168초·이메일 60초와 값이 다를 수 있음), `QUEUE_BUSY` |
 | 500 | `INTERNAL` |
 | 502 | `PROVIDER_ERROR` |
 | 503 | `NOT_CONFIGURED`, `TEMPORARILY_UNAVAILABLE` |
@@ -119,6 +119,8 @@
 
 - **속도**
   - 인증 사용자: 분당 600회. gateway, core, ai가 Neon `rate_limits`를 함께 쓴다. gateway 읽기는 `limit - floor(limit/10)`에서 멈춘다. 600이면 540이다. `limit`이 10 미만이면 그대로다.
+  - Worker는 같은 UTC 분 버킷이 이미 가득 찬 것으로 기억한 뒤의 거절에서 Neon 왕복을 생략한다(#274).
+  - VPS의 AI 요청 경로는 Postgres `rate_limits`를 쓰지 않는다. Redis가 있으면 Redis이고, 없거나 Redis 오류면 그 프로세스 메모리의 슬라이딩 윈도다.
   - 공개 경로: IP당 분당 60회
 - **본문**: ai는 20MiB가 넘으면 413이다. 필드별 제한은 각 엔드포인트에 적는다.
 - **CORS 허용 Origin**: `tauri://localhost`, `http://tauri.localhost`, `https://tauri.localhost`, localhost와 127.0.0.1(모든 포트). fo-web 운영 Origin은 없다(6장).
@@ -180,6 +182,7 @@
 | `POST /auth/phone/verify` | `phone*`, `code*` 6자리, `pendingToken`(소셜 연결일 때) | 200 Session과 `created`. 연결이면 `linked:true`와 `provider`. 코드가 틀리면 400 `PHONE_CODE_INVALID`. 만료는 해시보다 먼저 보고 400 `PHONE_CODE_EXPIRED`. 5회를 넘으면 429 `RATE_LIMITED`. 다른 계정에 연결된 번호는 409 `PHONE_TAKEN` "this login is already linked to another account". 이미 가입된 번호는 409 `PHONE_ALREADY_REGISTERED`(`details.existingProviders`). 소셜로 들어온 새 사용자가 같은 번호를 확인하면 그 계정에 provider가 연결된다 |
 | `POST /auth/refresh` | `refreshToken*` | Session. refresh token을 새로 바꾼다. 폐기된 토큰을 다시 쓰면 그 사용자의 토큰을 전부 폐기한다 |
 | `POST /auth/logout` | `refreshToken*` | 204 |
+| `POST /auth/email/verify/resend` | `{email}` | 항상 204. 메일 버킷은 주소당 분당 3통이고 가입·비밀번호 재설정과 공유한다. 넘치면 429 `RATE_LIMITED`, `retryAfterSec` 60. 주소가 없어도 204(#267) |
 | `DELETE /me` 🔑 | – | 204. 기업 관리자에게 다른 멤버가 있으면 409 `ADMIN_TRANSFER_REQUIRED` "transfer admin before deleting the account". 관리자뿐이면 `companies.deletion_requested_at`을 찍고, 회사 Stripe 고객이 사용자와 다르면 그 구독을 해지한다. 해지 실패는 502 `PROVIDER_ERROR` "stripe subscription cancel failed"이고 시각을 되돌린다. 성공하면 `users.deletion_requested_at`을 찍고 토큰을 폐기한다. 다시 로그인하면 그 시각을 지운다. 30일이 지나면 삭제 작업이 사용자 행을 지운다. 유예 중에는 허브 프로필과 소셜 글이 목록·상세에서 빠진다. 개인 구독은 인앱 결제라 서버가 해지하지 않는다 |
 | `GET /auth/me` | – | `{id, displayName, locale, createdAt, accountType, companyId, companyRole, email, provider, plan}`. plan은 `FREE\|PRO\|ULTRA`. phone과 구독 상태는 없다 |
 
@@ -353,7 +356,7 @@ stage: `DISCOVERED, PREPARING, READY, APPLIED, SCREENING, INTERVIEW, OFFER, ACCE
 
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
-| `GET /documents` | page, `applicationId`, `kind` | page |
+| `GET /documents` | page, `applicationId`, `kind`, `archived=1`(최근 30일 안 보관 서류. `archivedAt`, `purgeAt`=보관 시각+30일. 이 목록에만 있음) | page |
 | `POST /documents` 🔑 | `applicationId*`, `title*`(1–300), `kind*`(`RESUME\|PORTFOLIO\|COVER_LETTER\|CAREER_STATEMENT\|HUB_PROFILE`), `language*`, `template` | 201. 저장 template은 alias를 적용한 값 |
 | `GET` · `PATCH /documents/{id}` | PATCH: `expectedRevision*`, `title`, `template`, `language` | Document |
 | `GET /documents/{id}/versions[/{versionId}]` | page | Version |
@@ -365,6 +368,7 @@ stage: `DISCOVERED, PREPARING, READY, APPLIED, SCREENING, INTERVIEW, OFFER, ACCE
 | `POST /documents/{id}/review` 🔑 | `versionId*` | `{quality, blocks}` |
 | `POST /documents/{id}/finalize` 🔑 | `expectedRevision*`, `versionId*`, `approvalId*` | Document. 409 `UNSUPPORTED_CLAIM` |
 | `POST /documents/{id}/archive` 🔑 | `expectedRevision*` | Document |
+| `POST /documents/{id}/restore` 🔑 | `expectedRevision*`. `finalizedVersionId`가 있으면 `FINALIZED`, 없으면 `DRAFT`. revision 1 증가, 검색 색인 재삽입. 없거나 남의 서류거나 파기됐으면 404. revision 다르면 409. 보관 중이 아니면 200으로 그대로(#268, `0048`) | Document |
 | `GET /documents/{id}/versions/{versionId}/export` | `format`(`PDF\|DOCX`), `template`, `photo` | 파일. ai. 확정된 버전만 |
 | `POST` · `GET /documents/{id}/exports` 🔑 | `versionId*`, `format*`, `rendererVersion*` | 201 Export |
 | `POST /documents/{id}/exports/{exportId}/result` 🔑 | `sha256*`, `byteLength*`, `status*`(`SUCCEEDED\|FAILED`), `pageCount`, `validation{koreanText, links, atsText}`, `errorCode` | Export |
@@ -387,7 +391,7 @@ career-evidence 조회·생성·보관은 core, import는 ai, sources는 core, `
 | `POST /sources` 🔑 | multipart `kind*` 비어 있지 않은 문자열, `file*` ≤20MiB. MIME `application/pdf`, docx, `text/plain`, `text/markdown`, `application/octet-stream` | 201 `{id, fileName, mimeType, size, sha256, status:"STORED", jobId}`. ingest 작업을 넣는다. `kind`는 저장하지 않는다. `origin` 기본값은 `UPLOAD` |
 | `GET /sources` | page, `kind`(`UPLOAD\|AI`만. 없으면 둘 다) | 출처와 문서를 합쳐 최신순. AI 문서는 `origin:"AI"`, `mimeType:"application/json"`, `size:0`. 파일 이름이 `.md`로 끝나거나 mime이 `text/markdown`이면 뺀다 |
 | `GET /sources/{id}` · `GET /sources/{id}/content` | – | Source / 원본 바이트 |
-| `DELETE /sources/{id}` | – | 204. 근거가 참조 중이면 409 |
+| `DELETE /sources/{id}` | – | 204. 경력 근거에 막히면 409 `INVALID_TRANSITION`, `details.reason`=`REFERENCED_BY_EVIDENCE`, `details.evidenceCount`(#268) |
 | `GET /sources/{id}/profile-draft` | – | ai |
 
 경력 근거 kind와 채팅 업로드의 multipart `kind`는 다른 값이다. 목록 쿼리 `kind`도 다르다.
@@ -500,6 +504,32 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 
 `GET /experiments/{key}/assignment` · `POST /experiments/{key}/events` 🔑 `{event*}` → 201 · `GET /experiments/{key}/stats` · `GET /experiments/{key}/results`
 
+### 3.17 봇 (core)
+
+계약: `packages/contracts/spec/bots.ts`, `services/core-api/src/routes/bots.ts`.
+
+| 메서드·경로 | 요청 | 응답 |
+|---|---|---|
+| `GET /bots` | – | 200 `{data: Bot[]}`. Push 봇을 없으면 만들고, Push 봇을 먼저, 회사 봇은 `updatedAt` 내림차순 |
+| `POST /bots` 🔑 | 회사 봇 생성 | 201. 한도 초과 403 `BOT_LIMIT` |
+| `POST /bots/link-preview` 🔑 | `{url}` | `found`면 `company`, `title`, `postingId`. 아니면 `{status:"not_a_posting"}` |
+| `GET /bots/companies/search` | `q*` | `{name, openPostingCount}` 페이지 |
+| `GET /bots/{id}` | – | Bot |
+| `PATCH /bots/{id}` | `expectedRevision*`, `displayName`, `notificationsMuted`, `avatarKey`, `mascotKey` | Bot. 409 `REVISION_CONFLICT` |
+| `DELETE /bots/{id}` | – | 회사 봇 소프트 삭제(`deleted_at`). Push 봇은 403 `DEFAULT_BOT_PROTECTED`. 204. 대화 행은 지우지 않음 |
+| `GET /bots/{id}/conversations` | page | `bot_id`가 그 봇이고 보관되지 않은 대화, 커서 페이지 |
+| `POST /bots/{id}/conversations` 🔑 | `{title}`(≤300), `applicationId`(선택) | 201. 참고 데이터 동의 없으면 403 `CONSENT_REQUIRED`. `conversations.bot_id`를 넣고 봇의 `company_id`, `posting_id`를 복사 |
+| `POST /bots/{id}/read` 🔑 | `{readAt}` | `bot_read_markers` upsert |
+| `GET /bots/{id}/library` | `limit`(기본 50, 최대 100), `section`(`conversations`\|`files`\|`links`), 커서 | 아래 |
+
+`Bot`: `id`, `kind`(`push`\|`company`), `displayName`, `companyId`, `companyName`, `postingId`, `postingUrl`, `avatarKey`, `mascotKey`, `notificationsMuted`, `revision`, `createdAt`, `updatedAt`, `lastMessagePreview`(최대 140자), `unread`, `status`(`DONE`\|`RUNNING`\|`NEEDS_APPROVAL`).
+
+Push 봇 id는 `push:bot:{userId}`의 UUID5, 표시 이름 `Push Bot`.
+
+회사 봇 한도(Push 봇은 제외): FREE 3, PRO 20, ULTRA `null`(무제한). 알 수 없는 요금제는 FREE 3. ULTRA는 `limit === undefined`일 때만 FREE 3으로 떨어지던 `??` 버그를 고쳤다(#276). FREE·PRO 생성은 트랜잭션 안에서 `lock_timeout` 3초, `SELECT id FROM users WHERE id = $1 FOR NO KEY UPDATE` 후 count·INSERT. 락 타임아웃(55P03)은 429 `RATE_LIMITED`, `retryAfterSec` 1. 검증과 Push 봇 ensure는 트랜잭션 밖. 회사 이름 유니크는 없다. 같은 회사로 다시 POST하면 새 행. 기존 대화 `bot_id`는 `0052`가 채우지 않고, 새 대화만 `POST /bots/{id}/conversations`에서 연결.
+
+라이브러리: `section` 없으면 세 칸 모두, 있으면 해당 섹션만 채우고 나머지는 빈 페이지. 커서 `conversationCursor`, `fileCursor`, `linkCursor`. 대화는 그 봇의 보관되지 않은 대화. 파일은 그 봇 대화에 붙은 source·document(마크다운 이름·mime 제외). 링크는 봇 `posting_url`과 같거나, 그 봇 대화 본문 URL이 들어 있는 `user_links`.
+
 ## 4. 채용 · 허브 · 소셜 · 회사
 
 이 경로는 core다. gateway `isRecruiting`과 `isCore`에 등록돼 있다.
@@ -570,8 +600,8 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
-| `GET /postings/{id}/applicants` | page, `stage` | page `[{applicationId, applicant:{displayName, headline}, stage, appliedAt}]`. 다른 회사는 404 |
-| `GET /postings/{id}/applicants/{applicationId}` | – | `{application, documents:[스냅샷]}` |
+| `GET /postings/{id}/applicants` | page, `stage` | page `[{applicationId, applicant:{displayName, headline, isNew}, stage, appliedAt}]`. `isNew`는 `company_seen_at`이 비어 있으면 참, 상세 첫 조회가 지운다. 다른 회사는 404 |
+| `GET /postings/{id}/applicants/{applicationId}` | – | `{application, documents:[스냅샷], profileSource, capturedAt}`. `profileSource`는 `SUBMITTED\|CURRENT`. 지원 시 `applications.applicant_snapshot`에 headline, jobCategory, tenureYears, careers, skills, capturedAt을 넣는다(`0050`). 스냅샷 없으면 현재 프로필·`CURRENT`. email, displayName, hubProfileId는 항상 현재값(#269) |
 | `GET /postings/{id}/applicants/{applicationId}/files/{fileId}` | – | 파일 |
 | `GET /postings/{id}/applicant-counts` | – | 멤버만. 게스트는 404 |
 | `PATCH /postings/{id}/applicants/{applicationId}` | `stage*`(`SCREENING\|INTERVIEW\|OFFER\|REJECTED`) | 200. `APPLICATION_STAGE` 알림 제목 "지원 상태가 바뀌었어요". 끝 단계에서 다시 바꾸면 409 `INVALID_TRANSITION` |
@@ -592,7 +622,7 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
-| `GET /profiles` | `q`, `category`(쉼표), `tenure`(`0-2\|3-5\|6-9\|10+`), `status`(`satisfied\|seeking\|feedback`), `explore`(`recommended\|offers`), page | page Profile |
+| `GET /profiles` | `q`, `category`(쉼표), `tenure`(`0\|1-2\|3-5\|6-9\|10+`. 화면 라벨 신입·1–2년·3–5년·6–9년·10년+. 서버는 예전 `0-2`를 `[0,2]`로 거름), `status`(`satisfied\|seeking\|feedback`), `explore`(`recommended\|offers`), page | page Profile |
 | `GET /profiles/{userId}` | – | Profile + `following`, `offered` |
 | `POST /profiles/{userId}/offer` 🔑 | `message*`(1–500), `postingId` | 201. 다시 보내면 409 `CONFLICT`, 자기 자신에게 보내면 400 |
 | `GET /me/offers` | `box*`=`received\|sent`, page | page Offer `{id, sender, recipient, message, posting, status(SENT\|READ\|ACCEPTED\|DECLINED), readAt, createdAt}` |
@@ -605,6 +635,7 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 | `POST /me/links` 🔑 | `url*`(자격증명 없는 http(s)), `kind`, `title`, `aiRead` | 201. kind를 생략하면 주소로 판별 |
 | `PATCH /me/links/{id}` | `url`, `kind`, `title`, `aiRead` | 200 |
 | `DELETE /me/links/{id}` | – | 204 |
+| `POST /me/links/{id}/restore` 🔑 | – | 소프트 삭제 뒤 되돌림 |
 | `POST /me/devices` 🔑 | `token*`(1–4096), `platform*`(`ios\|android`) | 201 `{token, platform}` |
 | `DELETE /me/devices/{token}` | 경로 값이 토큰이다. OpenAPI 이름만 `{id}` | 204. 없어도 204 |
 | `GET /me/notifications` | page | `{id, type(DEADLINE\|OFFER\|COMMENT\|AI_DONE\|APPLICATION_STAGE), title, body, target, readAt, createdAt}` |
@@ -619,7 +650,7 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 | `GET /me/commented-posts` | page | 댓글 단 글 |
 | `GET /me/consents` | – | `{referenceData, updatedAt, terms}` |
 | `PUT /me/consents` 🔑 | `referenceData*` bool | 200. false면 그 사용자의 `reference_samples`를 지운다 |
-| `PUT /me/consents/terms` 🔑 | `age14`, `serviceTerms`, `privacy`, `marketing`, `termsVersion` | 200. 셋 중 하나라도 보내면 `age14`, `serviceTerms`, `privacy`가 모두 true여야 한다. 켠 뒤에는 끄지 못한다(400). `marketing`은 선택 bool. `termsVersion`은 1–64자, 없으면 `2026-10-29`. 가입 요청에는 저장하지 않는다 |
+| `PUT /me/consents/terms` 🔑 | `age14`, `serviceTerms`, `privacy`, `marketing`, `termsVersion` | 200. 셋 중 하나라도 보내면 `age14`, `serviceTerms`, `privacy`가 모두 true여야 한다. 켠 뒤에는 끄지 못한다(400). `marketing`은 선택 bool. `termsVersion`은 1–64자, 없으면 `1.0`. 다른 버전이면 이전 행을 `user_consent_history`에 복사한 뒤 덮어씀(#267, `0049`). 같은 버전은 멱등. 가입 요청에는 저장하지 않는다 |
 
 Settings 응답: `notifyDeadline`, `notifyOffer`, `notifyComment`, `notifyAiDone`, `notifyApplicationStage`(null이면 true), `locale`(`ko|en`), `profilePublic`, `careerStatusVisibility`(`everyone|followers|private`), `hideFromCurrentCompany`, `contactVisibility`(`accepted|followers|everyone|private`), `defaultTone`(`as_is|professional|confident|concise|technical|friendly`), `allowAiReadMyFiles`, `aiAccessMode`(`ALWAYS_ASK|AUTO|BYPASS`, null·빈 값은 `AUTO`). 잘못된 enum은 422 `VALIDATION_ERROR`, 잘못된 bool은 400 "must be a boolean"이다. `chatRetentionDays`, `defaultEffort`, `confirmBeforeEdit`는 응답에 없고 PATCH는 모르는 키를 무시한다.
 
@@ -656,8 +687,9 @@ Profile: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, c
 | `PATCH /companies/me` | `logoKey`, `industry`, `website`, `intro`, `representativeName` | 200 |
 | `GET /companies/me/members` | – | `[{userId, email, role, joinedAt}]` |
 | `POST /companies/me/invites` 🔑 관리자 | `email*` | 201. 자리 한도는 PRO 2, ULTRA 5, 그 밖(BASIC과 null 포함)은 0. 관리자는 수에 넣지 않는다. 넘으면 403 `SEAT_LIMIT` |
-| `GET /companies/me/invites` | – | 초대 목록 |
-| `GET /companies/invites/{token}` | – | 공개 |
+| `GET /companies/me/invites` | – | 멤버도 본다. 초대 목록 |
+| `POST /companies/me/invites/{id}/resend` 🔑 관리자 | – | 토큰 갱신. 60초 안이면 429. 메일 실패 502, 옛 토큰 유지(#267) |
+| `GET /companies/invites/{token}` | – | 공개. 만료 초대 미리보기 `{reason, companyName, inviterName, expiresAt}` |
 | `POST /companies/invites/{token}/accept` 🔑 | – | 204. 기업 계정만. 이미 다른 회사면 409 |
 | `DELETE /companies/me/members/{userId}` 🔑 관리자 | – | 204 |
 | `PATCH /companies/me/members/{userId}` 🔑 관리자 | `role*`(`ADMIN`) | 204. 관리자는 한 명 |
@@ -674,21 +706,25 @@ Profile: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, c
 
 ## 5. DB
 
-스키마는 push-be `db/migrations/0001_init.sql`부터 `0035_iap_subscription_sandbox.sql`까지다. 라우트가 이 컬럼을 읽는다. 배포 절차는 이 문서가 적지 않는다.
+스키마는 push-be `db/migrations/0001_init.sql`부터 `0052_bots.sql`까지다. 라우트가 이 컬럼을 읽는다. 배포 절차는 이 문서가 적지 않는다. `0001`–`0046`은 이전 버전과 같다.
 
-예전에 없다고 적었던 것 중 지금 있는 것
+| 파일 | 요지 |
+|---|---|
+| `0047_ai_usage_reservation_gen.sql` | `ai_usage.reservation_gen`. 기본 1 |
+| `0048_documents_purge_index_fit_cache_fk.sql` | 보관 서류 부분 인덱스, `posting_fit_cache` FK CASCADE |
+| `0049_user_consent_history.sql` | 약관 버전 교체 전 동의 행 |
+| `0050_application_applicant_snapshot.sql` | `applications.applicant_snapshot jsonb`, 기존 행 NULL |
+| `0051_conversation_list_ai_jobs.sql` | 대화 목록용 `ai_jobs` 부분 인덱스. API 필드 변경 없음(#272) |
+| `0052_bots.sql` | `bots`, `bot_read_markers`, `conversations.bot_id`. 기존 대화 UPDATE 없음 |
 
-- `users.phone`. 개인 계정끼리 unique (`0030_users_phone.sql`). `phone_codes`, `user_identities`
-- `user_consents.terms_version`, `age14_at`, `service_terms_at`, `privacy_at`, `marketing`, `marketing_at` (`0029_user_consent_terms.sql`)
-- 인앱 구독 (`0035_iap_subscription_sandbox.sql` 포함)
-- 채용 테이블은 `0016`과 그 뒤 마이그레이션. `application_snapshots`를 지원 때 채운다
+적용 메모(2026-11-11): `0047`–`0052`는 staging에 적용됐고 prod에는 아직 없다는 운영 메모가 있다. 이 저장소와 GitHub PR 본문만으로는 Neon 적용 로그를 확인하지 못했다(#269 머지 시점 본문은 staging·prod 모두 미적용). 적용 완료를 배포 절차처럼 단정하지 않는다.
 
 ## 6. 남은 차이
 
 - fo-web 운영 Origin이 CORS 허용 목록에 없다.
 - 개인 최근 검색 목록과 모두 지우기가 없다. 많이 찾는 검색어는 `GET /search/trending`이다.
 - "이번 주 많이 본 공고" 경로가 없다. `sort=popular`는 전체 기간 조회수다.
-- 서류, 경력 근거, 내 링크를 지운 뒤 되돌리는 API가 없다.
+- 서류 보관은 `POST /documents/{id}/restore`, 내 링크는 `POST /me/links/{id}/restore`로 되돌린다. 경력 근거(source) 삭제는 되돌리는 경로가 없고, 근거가 참조하면 409다.
 - 별도 `/offers` 리소스는 없다. 허브 제안은 4.3이다.
 - 재직 회사 이메일 인증 API가 없다.
 - 요금제를 내리는 전용 경로가 없다. 포털은 사용자 Stripe 고객 id만 연다.
