@@ -10,7 +10,7 @@
 
 이 저장소(`push-workspace`)는 제품 문서와 서브모듈 핀을 둔다. 앱 코드는 [push-fe](https://github.com/push-dot/push-fe), API 코드는 [push-be](https://github.com/push-dot/push-be)에 있다. `.gitmodules`의 브랜치는 `develop`이다.
 
-아래 문서가 적는 서브모듈 핀(`.gitmodules`에 고정된 커밋)과, 각 절이 설명할 때 참고한 develop HEAD는 서로 다를 수 있다. 이 파일을 쓴 날(2026-11-11) 문서 기준 develop은 push-be `d73240d`, push-fe `193dbd5`이다. 워크스페이스의 서브모듈 핀은 push-be `766a635`, push-fe `1a4eb22`이다. 동작의 기준은 각 서브모듈 develop이다.
+아래 문서가 적는 서브모듈 핀(`.gitmodules`에 고정된 커밋)과, 각 절이 설명할 때 참고한 develop HEAD는 서로 다를 수 있다. 이 파일을 쓴 날(2026-11-11) 문서 기준 develop은 push-be `d73240d`, push-fe `193dbd5`이다. 워크스페이스의 서브모듈 핀은 push-be `766a635`, push-fe `9911f12`(2026-11-12, `apps/fo-mobile`·`apps/fo-web`이 각각 [push-dot/fo-mobile](https://github.com/push-dot/fo-mobile)·[push-dot/fo-web](https://github.com/push-dot/fo-web) 서브모듈로 바뀐 커밋)이다. 이미 받은 클론은 `git submodule update --init --recursive`로 중첩 서브모듈까지 받는다. 동작의 기준은 각 서브모듈 develop이다.
 
 ## 아키텍처
 
