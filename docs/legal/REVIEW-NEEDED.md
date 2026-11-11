@@ -2,7 +2,7 @@
 
 이 폴더의 문서(`terms-of-service.md`, `privacy-policy.md`, `privacy-consent.md`, `marketing-consent.md`)는 **참고용 초안**입니다. 변호사(개인정보·전자상거래 분야)의 검토를 받기 전에는 출시하거나 결제를 받으면 안 됩니다. 법률 자문이 아니며, 참고한 `kimlawtech/korean-privacy-terms` 스킬의 DISCLAIMER도 같은 조건을 둡니다.
 
-- 원본: push-fe `packages/shared/src/legal/*.ts`. 앱(fo-mobile)은 이 데이터를 그대로 렌더링합니다. 웹(fo-web)은 아직 연결하지 않았습니다(`/terms`, `/privacy` 페이지와 푸터 링크는 별도 PR, push-fe #181은 머지됨). 이 폴더의 `.md`는 원본을 렌더링한 결과이며 push-fe의 `packages/shared/src/legal/md/*.md` 스냅숏과 같습니다. 내용을 바꾸려면 `.ts`를 고치고 `pnpm --filter @push/shared exec vitest run -u`로 스냅숏을 갱신한 뒤 이 폴더에 복사합니다. `make legal-check`가 두 사본이 다르면 실패하고, CI(`policy.yml`의 `legal` 작업)가 PR마다 돌립니다.
+- 원본: push-fe `packages/shared/src/legal/*.ts`. 앱(fo-mobile)은 이 데이터를 그대로 렌더링합니다. 웹(fo-web)은 push-fe #193이 `/terms`, `/privacy`에 약관·처리방침을 렌더합니다. 이 폴더의 `.md`는 원본을 렌더링한 결과이며 push-fe의 `packages/shared/src/legal/md/*.md` 스냅숏과 같습니다. 내용을 바꾸려면 `.ts`를 고치고 `pnpm --filter @push/shared exec vitest run -u`로 스냅숏을 갱신한 뒤 이 폴더에 복사합니다. `make legal-check`가 두 사본이 다르면 실패하고, CI(`policy.yml`의 `legal` 작업)가 PR마다 돌립니다.
 - 버전 1.0, 시행일 2026-11-09 (`LEGAL_VERSION`, `LEGAL_EFFECTIVE_DATE`). 앱은 가입 동의 때 `termsVersion: "1.0"`을 보냅니다. 서버 기본값도 push-be #251로 `1.0`입니다 (`consents.ts`). 실제 시행일로 바꾼 뒤 출시하세요.
 
 ## 문서가 사실이 되는 조건
@@ -113,6 +113,8 @@
 - 크레딧 충전 환불의 회수(#246)는 "그 구매로 받은 만큼, 잔액이 모자라면 남은 잔액만"입니다. 그 구매분이 이미 쓰였는지는 따로 계산하지 않습니다(약관 제14조 제9항은 이 규칙 그대로 적음).
 - 기업 요금제는 Stripe 결제 주기가 없는 회사에만 달력 월로 지급하는 예외 경로가 있습니다(`billing/credits.ts`의 `monthly:` 행). 약관 제11조 제2항은 결제 주기 지급만 적습니다.
 - 구매한 크레딧과 지급된 사용량은 원장에서 같은 `PURCHASE` 유형이라 자동 계산이 어려워, 약관 제14조 제3항은 "운영자가 확인해 직접 처리"라고 적습니다.
+- 약관 제8조 4항은 지원 뒤 허브 프로필의 소개·경력·기술을 고치면 기업 화면에도 바뀐다고 한다. #269 이후 새 지원은 `applicant_snapshot`을 `SUBMITTED`로 보여주고, 스냅샷이 없는 옛 행만 `CURRENT`다. email·displayName·hubProfileId는 현재 값이다. 약관 문장 수정은 이번 워크스페이스 수정 범위 밖이다.
+- 회사 봇 한도와 Bot 탭은 약관 제11조·제9조에 없다. 제9조 3항 라벨은 여전히 항상 묻기·자동·바로 실행이다. '항상 허용'은 제품 문서에서 접근 모드 설정의 이름일 뿐, 약관 라벨이 아니다.
 
 ## 약관·처리방침에서 고른 문구
 

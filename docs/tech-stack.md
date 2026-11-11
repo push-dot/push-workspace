@@ -2,6 +2,7 @@
 
 - 버전: 2.0
 - 작성일: 2026-10-20
+- 개정 메모: 2026-11-11. 기준 develop은 README와 같다(push-be `d73240d`, push-fe `193dbd5`).
 - 상태: 기존 스택은 각 저장소의 설정 파일 기준이다. 모바일은 2026-10-18 npm 최신판 기준이다.
 - 관련 문서: [PRD.md](PRD.md), [api-spec.md](api-spec.md)
 
@@ -12,18 +13,18 @@
 ```
 push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 ├─ push-fe               pnpm 11 + turbo 모노레포
-│  ├─ apps/fo-desktop    데스크톱 앱 (Tauri). 현재 루트에 있는 앱을 옮긴다.
 │  ├─ apps/fo-web        🆕 기업·구직자 웹 (상세 페이지는 앱 WebView에도 사용)
 │  ├─ apps/fo-mobile     🆕 iOS·Android 앱 (Expo)
 │  └─ packages/
 │     ├─ design-system   vanilla-extract + Mantine (웹·데스크톱)
 │     └─ api-client      🆕 ky 기반 타입·엔드포인트·SSE 파서 (웹·RN 공용)
+│  (데스크톱 앱은 [push-desktop](https://github.com/push-dot/push-desktop). 이 워크스페이스 서브모듈이 아니다)
 └─ push-be               서비스 모노레포 (npm workspaces + Python)
    ├─ services/gateway   TS Worker `push-be`
    ├─ services/core-api  TS Worker `push-be-core`
-   ├─ services/ai        Python Worker `push-be-python` → VPS 예정
+   ├─ services/ai        Hostinger VPS의 FastAPI 프로세스 (LangGraph, 큐 워커)
    ├─ packages/contracts FastAPI OpenAPI → TS 타입
-   ├─ db/migrations      SQL (0001–0015, 🆕 0016)
+   ├─ db/migrations      SQL `0001`–`0052`
    └─ infra              로컬 docker compose
 ```
 
@@ -63,6 +64,7 @@ push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 | 한글 검색 | `es-hangul` 2.4 (토스). 초성(`getChoseong`), 자모(`disassemble`), 영타 변환(`convertQwertyToHangul`) |
 | 스트리밍 | `expo/fetch` (`ReadableStream`) |
 | 플랫폼 분기 | `{name}.ios.tsx` / `{name}.android.tsx` |
+| 글꼴 | Noto Sans KR. 웨이트 400–800은 `NotoSansKR-Regular|Medium|SemiBold|Bold|ExtraBold`(`apps/fo-mobile/src/theme/fonts.ts`). 문서 기준 패밀리는 Noto Sans KR이다. `packages/design-system/tokens/push-app.json`의 `fontFamily`는 Pretendard가 앞에 있으나, 실제 패밀리는 `design-system.json`의 Noto Sans KR이다 |
 
 ### 2.4 디자인 시스템 (모바일) 🆕
 기준은 Claude Design "Push 디자인 시스템" 아티팩트다. 자세한 내용은 [feature-spec.md](feature-spec.md) 13장에 있다.
@@ -77,7 +79,7 @@ push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 | 로고 | 마스코트 로고와 "Push." 워드마크로 확정 |
 
 ### 2.5 fo-web 🆕
-Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. 데스크톱(5173)과 겹치지 않게 포트 5174를 쓰고, 에뮬레이터에서 접속할 수 있게 `host: true`로 띄운다. 앱 WebView 페이지와 개인·기업 웹을 함께 서빙한다. 웹 로그인은 개인 OAuth(Google · Apple · GitHub) · 휴대폰 번호와 기업 이메일 · Google을 직접 처리한다(WebView는 토큰 주입). 기업 결제는 Stripe Checkout으로 보낸다.
+Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. 본문 글꼴은 Noto Sans KR 토큰(`packages/design-system/src/tokens.ts`)이다. 데스크톱(5173)과 겹치지 않게 포트 5174를 쓰고, 에뮬레이터에서 접속할 수 있게 `host: true`로 띄운다. 앱 WebView 페이지와 개인·기업 웹을 함께 서빙한다. 웹 로그인은 개인 OAuth(Google · Apple · GitHub) · 휴대폰 번호와 기업 이메일 · Google을 직접 처리한다(WebView는 토큰 주입). 기업 결제는 Stripe Checkout으로 보낸다.
 
 ## 3. 백엔드
 
@@ -85,9 +87,9 @@ Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. �
 |---|---|
 | API 입구 | gateway: TS Worker. 인증 캐시(최대 5초), 속도 제한, Cache API, 라우팅(`ownerOf`) |
 | CRUD | core-api: TS 5.9 Worker, wrangler 4, `@neondatabase/serverless`(HTTP) |
-| AI | Python 3.13, FastAPI, LangGraph, asyncpg(로컬) / Neon WebSocket(Workers) |
-| 채팅 실행 | 로컬·VPS: `chat_jobs` 큐 + `FOR UPDATE SKIP LOCKED` 워커. Workers: Cloudflare Workflow 3단계 |
-| 브라우저 | Playwright (SSRF 검증 프록시 경유). Workers에서는 Browser Rendering |
+| AI | Python 3.12 이상(이미지·CI 상한 3.15). FastAPI, LangGraph, asyncpg(로컬) / Neon WebSocket(Workers) |
+| 채팅 실행 | 운영 큐는 VPS Redis Streams(`q:chat`, `q:chat:priority`, `q:document`, `q:ingest`, `q:notify`). `QUEUE_BACKEND=postgres`일 때만 프로세스 안 채팅 폴러가 `chat_jobs`를 `FOR UPDATE SKIP LOCKED`로 가져간다 |
+| 브라우저 | Playwright (SSRF 검증 프록시 경유). VPS AI에서만 실행한다 |
 | 문서 | ReportLab(PDF), zip+XML(DOCX), opendataloader-pdf / pypdf(텍스트 추출) |
 | RAG | pgvector top-k (evidence 청크) |
 | LLM | OpenRouter, OpenAI 호환, 역할별 모델 라우팅. AI는 항상 Push가 제공하는 모델로 돌린다. 요금제별 모델(DeepSeek · Sonnet · Opus · Fable 최신), 추론 강도 `LOW\|MEDIUM\|HIGH\|MAX`(요금제가 정한다), 웹 검색은 OpenRouter `:online`, DeepSeek는 제공사 라우팅으로 미국 호스팅만 |
@@ -103,18 +105,19 @@ Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. �
 | 영역 | 선택 |
 |---|---|
 | DB | PostgreSQL 16 + pgvector, 🆕 `pg_trgm` (검색용 초성·자모 컬럼은 `es-hangul`로 만든다) |
-| 운영 DB | Neon (Direct 호스트, `sslmode=require`) |
-| 마이그레이션 | `db/migrations/NNNN_*.sql`. 운영은 수동 실행(Actions "Migrate database") |
+| 운영 DB | Neon (Direct 호스트, `sslmode=require`). core Worker는 요청마다 Neon 연결 하나(ContextVar). VPS는 asyncpg 풀 |
+| 연결 풀(VPS) | `DB_POOL_MIN_SIZE` 기본 0, `DB_POOL_MAX_SIZE` 기본 10, `CHECKPOINTER_POOL_MAX_SIZE` 기본 4. Worker 경로에는 적용되지 않는다 |
+| 마이그레이션 | `db/migrations/NNNN_*.sql` (`0001`–`0052`). 운영은 수동 실행(Actions "Migrate database"). 적용 메모는 5장 |
 | 파일 | 로컬: 디스크(`./data/sources`). Workers: `sources.content`. 🆕 이미지는 로컬 디스크를 쓰고 배포할 때 R2로 바꾼다. |
 
 ## 5. 인프라·배포
 
 | 영역 | 선택 |
 |---|---|
-| Edge | Cloudflare Workers: `push-be`(gateway), `push-be-core`, `push-be-python` |
-| VPS 🆕 | Hostinger KVM 2 (2 vCPU / 8GB), Dokploy(Docker, Traefik). AI 서비스와 Playwright를 여기서 돌린다. |
+| Edge | Cloudflare Workers: `push-be`(gateway), `push-be-core` |
+| VPS 🆕 | Hostinger KVM 2 (2 vCPU / 8GB), Docker, Traefik. AI 서비스와 Playwright를 여기서 돌린다. Dokploy 패널은 제거된 구성이다(`infra/vps/README.md`, `infra/vps/compose.yaml` 머리말) |
 | 로컬 | `push-be/infra/docker-compose.yml` (Postgres 5434, ai 8080). gateway와 core는 `wrangler dev`로 띄우고, 🆕 Neon HTTP 프록시가 필요하다. |
-| CI/CD | GitHub Actions. push-be는 바뀐 서비스만 테스트하고, main에 push하면 python → core → gateway 순서로 배포한다. push-fe는 typecheck, lint, test, build, e2e를 돌리고 release 워크플로가 DMG·NSIS를 만든다. |
+| CI/CD | GitHub Actions. push-be 배포 순서: VPS 이미지 → Worker `push-be-core` → Worker `push-be`. 스키마는 수동 워크플로 **Migrate database**. push-fe는 typecheck, lint, test, build. |
 | 브랜치 | `develop` 기준 squash merge. 릴리스는 develop → main PR로 한다. |
 
 ## 6. 선택 이유
@@ -125,4 +128,4 @@ Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. �
 - **fo-web**: 기업과 구직자가 함께 쓰는 웹이다. 공고 상세와 프로필 상세는 앱 WebView에서도 같은 화면으로 쓴다. 외부 사이트는 WebView로 열지 않는다.
 - **v2 CRUD는 core-api(TS)**: 저장소가 이미 AI가 아닌 경로를 TS로 옮기는 중이다.
 - **Playwright는 서버에서만**: 휴대폰에서는 브라우저 자동화를 돌릴 수 없다. 사용자가 준 링크 하나만 읽고 그 사용자 데이터로만 쓴다.
-- **AI만 VPS로**: Workers Python은 CPU 10ms 제한, Browser Rendering 하루 10분 한도, 스트리밍 제약이 있다. 읽기와 CRUD는 Workers에 그대로 둔다.
+- **AI만 VPS로**: Workers Python 런타임 제약과 Browser Rendering 한도 등 때문에 AI 실행 경로만 VPS에 둔다. 읽기와 CRUD는 Workers에 그대로 둔다.

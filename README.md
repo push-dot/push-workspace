@@ -10,6 +10,8 @@
 
 이 저장소(`push-workspace`)는 제품 문서와 서브모듈 핀을 둔다. 앱 코드는 [push-fe](https://github.com/push-dot/push-fe), API 코드는 [push-be](https://github.com/push-dot/push-be)에 있다. `.gitmodules`의 브랜치는 `develop`이다.
 
+아래 문서가 적는 서브모듈 핀(`.gitmodules`에 고정된 커밋)과, 각 절이 설명할 때 참고한 develop HEAD는 서로 다를 수 있다. 이 파일을 쓴 날(2026-11-11) 문서 기준 develop은 push-be `d73240d`, push-fe `193dbd5`이다. 워크스페이스의 서브모듈 핀은 push-be `766a635`, push-fe `1a4eb22`이다. 동작의 기준은 각 서브모듈 develop이다.
+
 ## 아키텍처
 
 ```
@@ -42,11 +44,11 @@ fo-mobile (Expo) ── WebView ──► fo-web (Vite)
 
 | 영역 | 선택 |
 | --- | --- |
-| 모바일 | Expo SDK 58, React Native 0.88, Expo Router(Native Tabs, Drawer), React 19.3, TanStack Query 5, Zustand 5, `@expo/ui`, Noto Sans KR |
+| 모바일 | Expo SDK 58, React Native 0.88, Expo Router(Native Tabs, Stack. 대화 목록은 탭 위 스택), React 19.3, TanStack Query 5, Zustand 5, `@expo/ui`, Noto Sans KR (`apps/fo-mobile/src/theme/fonts.ts`의 `NotoSansKR-Regular|Medium|SemiBold|Bold|ExtraBold`. 웹 토큰은 `packages/design-system/src/tokens.ts`의 `"Noto Sans KR", "Noto Sans"`) |
 | 웹 | Vite 6, React 19.1, React Router 7, TanStack Query 5. 개발 서버 포트 5174 |
 | 공통 클라이언트 | TypeScript, pnpm 11, Turborepo 2, ky(`@push/api-client`), es-hangul(`@push/shared`) |
-| 엣지 | Cloudflare Workers. gateway npm 패키지는 `push-be-front`, Worker 이름은 `push-be`. core 패키지와 Worker 이름은 `push-be-core`. Wrangler 4, TypeScript 7, `@neondatabase/serverless` |
-| AI | Python 3.12 이상. 이미지와 CI 상한은 3.15. FastAPI, LangGraph, uvicorn. 운영 프로세스는 VPS의 `ai-worker`, `ingest-worker`, `notify-worker`, `dispatcher` |
+| 엣지 | Cloudflare Workers. gateway Worker `push-be`, core Worker `push-be-core`. npm 패키지명은 각각 `push-be-front`, `push-be-core`. Wrangler 4, TypeScript 7, `@neondatabase/serverless` |
+| AI | Python 3.12 이상. 이미지와 CI 상한은 3.15. FastAPI, LangGraph, uvicorn. Hostinger VPS의 Docker·Traefik 위에서 `ai-worker`, `ingest-worker`, `notify-worker`, `dispatcher`와 Redis Streams를 돌린다. Dokploy와 Worker `push-be-python`은 운영 구성이 아니다 |
 | 데이터 | 로컬 DB는 pgvector Postgres 16, 호스트 포트 5434. 운영 DB는 Neon. 운영 큐는 Redis Streams |
 | 이 저장소의 compose | `postgres:17-alpine`과 Caddy 2. 실행 절을 본다 |
 
@@ -120,6 +122,8 @@ compose의 api 서비스는 `LISTEN_ADDR`를 환경에 넣는다. 이 이름은 
 push-workspace/
 ├─ deploy/Caddyfile      API_DOMAIN → api:8080
 ├─ docs/                 제품 설계 초안
+│  ├─ legal/             약관·처리방침 스냅숏(본문은 push-fe 원본)
+│  ├─ agent-upgrade-plan.md
 │  ├─ PRD.md
 │  ├─ feature-map.md
 │  ├─ feature-spec.md
