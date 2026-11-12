@@ -1,6 +1,8 @@
+# 자체 호스팅용 묶음: Postgres(pgvector) + push-be AI 서비스 + Caddy(TLS).
+# 이미지와 환경은 push-be/infra/docker-compose.yml을 따른다. 시크릿은 .env에 둔다.
 services:
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg16@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
     restart: unless-stopped
     environment:
       POSTGRES_DB: push
@@ -14,13 +16,19 @@ services:
       timeout: 3s
       retries: 10
   api:
-    build: ./push-be
+    build:
+      context: ./push-be/services/ai
     restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgres://push:${POSTGRES_PASSWORD}@postgres:5432/push?sslmode=disable
-      APP_ENV: production
-      LISTEN_ADDR: ':8080'
+      DB_DRIVER: asyncpg
+      PG_TRANSPORT: tcp
+      RUN_MIGRATIONS: '1'
+      APP_ENV: ${APP_ENV:-production}
+      PORT: '8080'
+    volumes:
+      - ./push-be/db:/db:ro
     depends_on:
       postgres:
         condition: service_healthy
