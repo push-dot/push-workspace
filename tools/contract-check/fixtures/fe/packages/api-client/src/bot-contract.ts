@@ -5,7 +5,7 @@ export type BotSearch = { bots: Bot[]; botTotal: number }
 export type LinkPreview = { status: 'found'; postingId: string } | { status: 'not_a_posting' }
 export type CreateBotBody = { postingId: string; displayName?: string }
 export type UpdateBotBody = { expectedRevision: number; displayName?: string }
-export type SendBody = { text: string }
+export type SendBody = { text: string; attachments?: { kind: string; id: string }[]; ai?: { model?: string; effort?: string; models?: { vision?: string } } }
 export type StreamEvent =
   | { type: 'status'; text: string; phase?: 'queued' | 'thinking' | 'working' | 'waiting' }
   | { type: 'token'; text: string }

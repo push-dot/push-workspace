@@ -22,11 +22,15 @@ const client = resolve(process.env.FE || join(root, 'push-fe'), 'packages/api-cl
 const all = readdirSync(join(here, 'lines')).map((file) => file.replace(/\.ts$/, '')).sort()
 const only = (process.env.ONLY ?? '').split(/\s+/).filter(Boolean)
 const lines = only.length ? only : all
-const mustNotWait = only.length > 0 || process.env.STRICT === '1'
+const strict = process.env.STRICT ?? ''
+// Any other value, such as STRICT=true, would run a default check that lets a line wait.
+if (strict !== '' && strict !== '1') fail(`STRICT takes 1, not "${strict}"`)
+const mustNotWait = only.length > 0 || strict === '1'
 
 const unknown = lines.filter((line) => !all.includes(line))
 if (unknown.length) fail(`no such line: ${unknown.join(' ')}\nlines: ${all.join(' ')}`)
 if (!existsSync(schema)) fail(`no ${schema}`)
+if (!existsSync(client)) fail(`no ${client}`)
 
 const { waiting, drift } = existsSync(join(client, 'bot-contract.ts'))
   ? compile()

@@ -26,6 +26,15 @@ export interface components {
             bots: components["schemas"]["Bot"][];
         };
         BotSendBody: {
+            ai?: {
+                effort?: string;
+                model?: string;
+                models?: unknown;
+            };
+            attachments?: {
+                id: string;
+                kind: string;
+            }[];
             text: string;
         };
         CardRetry: {
