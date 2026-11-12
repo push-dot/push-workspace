@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "types": [],
+    "paths": {
+      "push-be/schema": ["../../push-be/packages/contracts/src/schema.ts"],
+      "push-fe/api-client/*": ["../../push-fe/packages/api-client/src/*"]
+    }
+  }
+}

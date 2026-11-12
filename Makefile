@@ -2,7 +2,7 @@
 # api는 로컬 Postgres(push-be/infra/docker-compose.yml, 호스트 5434)를 기본으로 본다.
 # 다른 DB를 쓰려면 DATABASE_URL을 넘긴다. 예: make api DATABASE_URL=postgres://...
 
-.PHONY: setup install db api gateway core web mobile test test-fe test-ai test-workers legal-check
+.PHONY: setup install db api gateway core web mobile test test-fe test-ai test-workers legal-check contract-check contract-check-selftest
 
 BE := push-be
 FE := push-fe
@@ -60,3 +60,12 @@ legal-check:
 	diff -u $(LEGAL_MD)/privacyPolicy.md docs/legal/privacy-policy.md
 	diff -u $(LEGAL_MD)/privacyConsent.md docs/legal/privacy-consent.md
 	diff -u $(LEGAL_MD)/marketingConsent.md docs/legal/marketing-consent.md
+
+# push-fe api-client의 봇 계약 타입을 push-be가 생성한 schema.ts와 한 줄씩 맞춰 컴파일한다. 어긋나면 실패한다.
+# 한쪽에 아직 타입이 없는 줄은 기다린다. ONLY로 고른 줄과 STRICT=1에서는 기다리지 않고 실패한다.
+# 다른 체크아웃과 맞춰 보려면 BE, FE를 넘긴다. 예: make contract-check ONLY="createBot updateBot" BE=../be-S1 FE=../fe-F1
+contract-check:
+	BE='$(BE)' FE='$(FE)' ONLY='$(ONLY)' STRICT='$(STRICT)' node tools/contract-check/check.mjs
+
+contract-check-selftest:
+	node --test tools/contract-check/selftest.mjs
