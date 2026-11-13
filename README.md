@@ -10,7 +10,7 @@
 
 이 저장소(`push-workspace`)는 제품 문서와 서브모듈 핀을 둔다. 앱 코드는 [push-fe](https://github.com/push-dot/push-fe), 웹·모바일 앱 저장소는 [fo-web](https://github.com/push-dot/fo-web)·[fo-mobile](https://github.com/push-dot/fo-mobile), API 코드는 [push-be](https://github.com/push-dot/push-be)에 있다. `.gitmodules`의 브랜치는 `develop`이다.
 
-이 저장소가 핀한 서브모듈 커밋은 push-be `dd505bb`, push-fe `866b3f6`이다. push-fe는 앱 두 저장소(fo-mobile `a7213fc`, fo-web `9c2d680`)를 중첩 서브모듈로 핀한다. 앱 저장소 develop은 그 핀보다 앞설 수 있다. 이미 받은 클론은 `git submodule update --init --recursive`로 중첩 서브모듈까지 받는다. 동작의 기준은 각 서브모듈 develop이다.
+이 저장소가 핀한 서브모듈 커밋은 push-be `dd505bb`, push-fe `88211f1`이다. push-fe는 앱 두 저장소(fo-mobile `7aa566e`, fo-web `69972f1`)를 중첩 서브모듈로 핀한다. 앱 저장소 develop은 그 핀보다 앞설 수 있다. 이미 받은 클론은 `git submodule update --init --recursive`로 중첩 서브모듈까지 받는다. 동작의 기준은 각 서브모듈 develop이다.
 
 ## 아키텍처
 
