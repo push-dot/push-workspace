@@ -1,4 +1,4 @@
-import type { components } from 'push-be/schema'
+import type { components, operations, paths } from 'push-be/schema'
 import type * as BotContract from 'push-fe/api-client/bot-contract'
 
 export type { BotContract }
@@ -39,3 +39,15 @@ type Keys<Body> = unknown extends Body
 
 /** One event type of a stream union. An event type only the server has is not drift: the app ignores a frame it does not know. */
 export type Event<Union, Type extends string> = Extract<Union, { type: Type }>
+
+type JsonBody<Operation extends string> = Operation extends keyof operations
+  ? operations[Operation] extends { responses: { 200: { content: { 'application/json': infer Body } } } }
+    ? Body
+    : never
+  : never
+
+/** The list a site-grants GET sends, read from the operation because the server names no schema for the envelope. */
+export type SiteGrantList = JsonBody<'getBotsByIdSiteGrants'>
+
+/** `true` while the server declares a DELETE on the path. A path the server lacks waits. A path without a DELETE fails. */
+export type HasDelete<Path extends string> = Path extends keyof paths ? (paths[Path] extends { delete: unknown } ? true : never) : Missing
