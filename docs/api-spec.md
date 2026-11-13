@@ -522,7 +522,7 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 | `GET /bots` | `postingId`(uuid, 선택) | 200 `{data: Bot[], limit?}`. `postingId`가 없으면 Push Bot을 먼저, 회사 봇은 `lastActivityAt` 내림차순(같으면 `id` 내림차순). 페이지 없음. `limit`은 `{plan, max, used, table}`이고 Push Bot은 세지 않는다. `postingId`가 있으면 그 공고 회사의 내 회사 봇이 0개 또는 1개이고 `limit`은 없다 |
 | `POST /bots` 🔑 | 닫힌 본문 `{postingId*, displayName?(1–120), color?}`. 다른 키는 400이다. `companyId`, `companyName`, `postingUrl`도 거절한다 | 새로 만들면 201 Bot. 그 회사 봇이 이미 있으면 200 Bot이고 본문의 이름과 색은 무시한다. 403 `CONSENT_REQUIRED`, 생성 경로에서만 403 `BOT_LIMIT`(`details`: `{limit, plan}`), 404(없는 공고), 429 `RATE_LIMITED` |
 | `POST /bots/link-preview` 🔑 | `{url*}` | `{status:"found", postingId, company, title, deadline, careerMin, careerMax, location, host}` 또는 `{status:"not_a_posting"}`. Push가 이미 가진 공고만 찾는다. 밖의 페이지는 가져오지 않는다 |
-| `GET /bots/search` | `q*`(≤200), `cursor`, `limit`(20, 최대 50) | 200 `{data: {bots, botTotal, messages, messageTotal}, page}`. `bots`는 이름·회사·공고 제목에 `q`가 든 봇(각각 `line` 포함), `messages`는 봇 대화 메시지(`snippet`)이고 `page`는 메시지 쪽을 넘긴다. 400(`q`) |
+| `GET /bots/search` | `q*`(≤200), `cursor`, `limit`(20, 최대 50. 빈 `limit=`은 20) | 200 `{data: {bots, botTotal, messages, messageTotal}, page}`. `bots`는 이름·회사·공고 제목에 `q`가 든 봇(각각 `line` 포함), `messages`는 봇 대화 메시지(`snippet`)이고 `page`는 메시지 쪽을 넘긴다. 400(`q`) |
 | `GET /bots/{id}` | – | 200 BotDetail(`Bot` + `posting`, `fit`, `materialCount`). 404 |
 | `PATCH /bots/{id}` | `expectedRevision*`, `displayName`, `notificationsMuted`, `color`. `avatarKey`와 `mascotKey`는 거절한다. Push Bot은 `notificationsMuted`만 받는다 | 200 Bot(상태 포함). 409 `REVISION_CONFLICT`(`details`: `{currentRevision}`) |
 | `DELETE /bots/{id}` | – | 204. 봇 행을 지우고 대화, 메시지, 작업, 이벤트, 카드, 작업 공간 파일, 작업 완료 알림, 읽음 표시, 사이트 허용이 연쇄로 함께 지워진다. 모델 체크포인트는 같은 트랜잭션에서 트리거(0057)가 지우고 15분마다 남은 것을 쓸어 담는다. 그 달 사용량 행은 남는다. Push Bot은 403 `DEFAULT_BOT_PROTECTED` |
@@ -556,7 +556,7 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 
 `kind`는 `file\|document\|posting\|link`다. `Material`은 종류별 합타입이고 서류(`file`, `document`)에는 `origin`(`UPLOAD\|AI`)과 만든 봇 `createdBy`가 있다. 링크 항목에는 `linkKind`, `host`, `addedAt`, `lastCheckedAt`, `lastCheckOk`가 있다. 링크 종류는 저장된 다섯 가지 그대로이고 `linkedin`은 종류가 아니다. LinkedIn 표시는 `host`로 앱이 만든다. `lastCheckedAt`은 봇이 그 링크를 열었을 때만 쓰며 따로 도는 링크 검사는 없다. 북마크 날짜(`bookmarkedAt`)는 `/me/bookmarks`가 아니라 `GET /materials`에서 온다.
 
-`Bot`: `id`, `kind`(`push`\|`company`), `displayName`(Push Bot 또는 회사 이름), `companyName`(Push Bot은 빈 문자열), `color`(11가지 이름. Push Bot은 null), `postingId`(만든 공고. 공고가 사라지면 null), `notificationsMuted`, `revision`, `createdAt`, `lastActivityAt`, `lastMessage`(`{preview, at, fromBot}`. `preview`는 최대 140자), `unread`, `activity`. `activity`는 아무것도 돌지 않고 열린 카드도 없으면 null이고, 아니면 `{phase: queued\|thinking\|working\|waiting, since, ...}`다. `queued`는 `ahead`, `thinking`과 `working`은 `label`, `waiting`은 `for`(`answer\|confirm`), `cardId`, `cardTitle`, `expiresAt`을 더한다. 서버는 마스코트 상태를 이름 붙이지 않는다. `activity`와 `unread`는 사실이고, 다섯 상태와 우선순위는 앱의 규칙이다. S12가 끝날 때까지 `companyId`(항상 null), `avatarKey`, `mascotKey`, `postingUrl`, `updatedAt`, `lastMessagePreview`, `status`가 옛 앱을 위해 남아 있으며 새 코드는 읽지 않는다.
+`Bot`: `id`, `kind`(`push`\|`company`), `displayName`(Push Bot 또는 회사 이름), `companyName`(Push Bot은 빈 문자열), `color`(11가지 이름. Push Bot은 null), `postingId`(만든 공고. 공고가 사라지면 null), `notificationsMuted`, `revision`, `createdAt`, `lastActivityAt`, `lastMessage`(`{preview, at, fromBot}`. `preview`는 최대 140자), `unread`, `activity`, `outcome`. `outcome`은 `{kind: expired\|failed, at}`이거나 null이다. 아무것도 돌지 않고 열린 카드도 없을 때만 있고, 가장 새 카드가 답 없이 만료됐으면 `expired`, 가장 새 채팅 작업이 실패했으면 `failed`다. 새 메시지, 카드, 작업이 오면 지워진다. `activity`는 아무것도 돌지 않고 열린 카드도 없으면 null이고, 아니면 `{phase: queued\|thinking\|working\|waiting, since, ...}`다. `queued`는 `ahead`, `thinking`과 `working`은 `label`, `waiting`은 `for`(`answer\|confirm`), `cardId`, `cardTitle`, `expiresAt`을 더한다. 서버는 마스코트 상태를 이름 붙이지 않는다. `activity`와 `unread`는 사실이고, 다섯 상태와 우선순위는 앱의 규칙이다. S12가 끝날 때까지 `companyId`(항상 null), `avatarKey`, `mascotKey`, `postingUrl`, `updatedAt`, `lastMessagePreview`, `status`가 옛 앱을 위해 남아 있으며 새 코드는 읽지 않는다.
 
 Push Bot 표시 이름은 `Push Bot`이다. 회사 봇 한도(Push Bot은 제외): FREE 3, PRO 20, ULTRA 무제한(`max: null`). 알 수 없는 요금제는 FREE 3이다. FREE·PRO 생성은 트랜잭션 안에서 `lock_timeout` 3초, 사용자 행 `FOR NO KEY UPDATE` 뒤에 센다. 락 타임아웃(55P03)은 429 `RATE_LIMITED`(`retryAfterSec` 1)다.
 
@@ -671,7 +671,7 @@ Push Bot 표시 이름은 `Push Bot`이다. 회사 봇 한도(Push Bot은 제외
 | `POST /me/links` 🔑 | `url*`(자격증명 없는 http(s)), `kind`, `title`, `aiRead` | 201. kind를 생략하면 주소로 판별 |
 | `PATCH /me/links/{id}` | `url`, `kind`, `title`, `aiRead` | 200 |
 | `DELETE /me/links/{id}` | – | 204 |
-| `POST /me/links/{id}/restore` 🔑 | – | 소프트 삭제 뒤 되돌림 |
+| `POST /me/links/{id}/restore` 🔑 | – | 소프트 삭제 뒤 되돌림. 지워지지 않은 링크면 404. `DELETE /me/links/{id}`를 다시 불러도 204 |
 | `POST /me/devices` 🔑 | `token*`(1–4096), `platform*`(`ios\|android`) | 201 `{token, platform}` |
 | `DELETE /me/devices/{token}` | 경로 값이 토큰이다. OpenAPI 이름만 `{id}` | 204. 없어도 204 |
 | `GET /me/notifications` | page | `{id, type(DEADLINE\|OFFER\|COMMENT\|AI_DONE\|APPLICATION_STAGE), title, body, target, readAt, createdAt}`. 봇 대화의 `AI_DONE`은 제목 "봇 작업 완료", 대상 `{kind:"bot", id}`이고, 음소거한 봇과 이미 읽은 봇에는 만들지 않는다(3.17). 봇이 없는 대화는 예전 제목과 `{kind:"conversation", id}`다. 앱은 `POST /me/devices`로 기기를 등록해야 푸시를 받는다 |
@@ -742,7 +742,7 @@ Profile: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, c
 
 ## 5. DB
 
-스키마는 push-be `db/migrations/0001_init.sql`부터 `0059_approval_asks_again.sql`까지다. 라우트가 이 컬럼을 읽는다. 배포 절차는 이 문서가 적지 않는다. `0001`–`0046`은 이전 버전과 같다.
+스키마는 push-be `db/migrations/0001_init.sql`부터 `0060_bot_outcome.sql`까지다. 라우트가 이 컬럼을 읽는다. 배포 절차는 이 문서가 적지 않는다. `0001`–`0046`은 이전 버전과 같다.
 
 | 파일 | 요지 |
 |---|---|
@@ -759,8 +759,9 @@ Profile: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, c
 | `0057_thread_erase_checkpoints.sql` | 대화가 지워질 때 같은 트랜잭션에서 모델 체크포인트를 지우는 트리거 |
 | `0058_bot_site_grants.sql` | `bot_site_grants(bot_id, host)`. 봇을 지우면 연쇄로 지운다 |
 | `0059_approval_asks_again.sql` | 수명이 있는 도구 카드만 다시 요청할 수 있다는 규칙(`approval_expires`)을 한 곳에 둔다 |
+| `0060_bot_outcome.sql` | `bot_state_v`에 `outcome_kind`, `outcome_at` 두 컬럼을 더한다(인덱스 없음). 답 없이 만료된 카드와 실패한 채팅 작업을 목록 행이 따로 그리게 한다 |
 
-적용 메모(2026-11-11): `0053`–`0059`는 develop에 머지됐을 뿐 어느 환경에도 적용했다고 적지 않는다. 적용은 `Migrate database` 워크플로를 소유자가 돌릴 때다. `0047`–`0052`는 staging에 적용됐고 prod에는 아직 없다는 운영 메모가 있다. 이 저장소와 GitHub PR 본문만으로는 Neon 적용 로그를 확인하지 못했다(#269 머지 시점 본문은 staging·prod 모두 미적용). 적용 완료를 배포 절차처럼 단정하지 않는다.
+적용 메모(2026-11-11): `0053`–`0060`은 develop에 머지됐을 뿐 어느 환경에도 적용했다고 적지 않는다. 적용은 `Migrate database` 워크플로를 소유자가 돌릴 때다. `0047`–`0052`는 staging에 적용됐고 prod에는 아직 없다는 운영 메모가 있다. 이 저장소와 GitHub PR 본문만으로는 Neon 적용 로그를 확인하지 못했다(#269 머지 시점 본문은 staging·prod 모두 미적용). 적용 완료를 배포 절차처럼 단정하지 않는다.
 
 ## 6. 남은 차이
 

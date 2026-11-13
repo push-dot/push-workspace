@@ -10,7 +10,7 @@
 
 이 저장소(`push-workspace`)는 제품 문서와 서브모듈 핀을 둔다. 앱 코드는 [push-fe](https://github.com/push-dot/push-fe), 웹·모바일 앱 저장소는 [fo-web](https://github.com/push-dot/fo-web)·[fo-mobile](https://github.com/push-dot/fo-mobile), API 코드는 [push-be](https://github.com/push-dot/push-be)에 있다. `.gitmodules`의 브랜치는 `develop`이다.
 
-이 저장소가 핀한 서브모듈 커밋은 push-be `f2ce453`, push-fe `38a04e7`이다. push-fe는 앱 두 저장소(fo-mobile, fo-web)를 중첩 서브모듈로 핀한다. 이미 받은 클론은 `git submodule update --init --recursive`로 중첩 서브모듈까지 받는다. 동작의 기준은 각 서브모듈 develop이다.
+이 저장소가 핀한 서브모듈 커밋은 push-be `dd505bb`, push-fe `866b3f6`이다. push-fe는 앱 두 저장소(fo-mobile `a7213fc`, fo-web `9c2d680`)를 중첩 서브모듈로 핀한다. 앱 저장소 develop은 그 핀보다 앞설 수 있다. 이미 받은 클론은 `git submodule update --init --recursive`로 중첩 서브모듈까지 받는다. 동작의 기준은 각 서브모듈 develop이다.
 
 ## 아키텍처
 
@@ -55,7 +55,7 @@ fo-mobile (Expo) ── WebView ──► fo-web (Vite)
 ## 이 저장소에서 하는 일
 
 - `push-fe`, `push-be`를 서브모듈로 고정한다.
-- `docs/`에 제품 설계 문서를 둔다. `PRD.md`, `feature-map.md`, `feature-spec.md`, `tech-stack.md`는 버전 2.0(작성 2026-10-20, 개정 메모 2026-11-11) 초안이고, `api-spec.md`는 버전 2.3(작성 2026-11-13)이다. 모바일 문서는 개인 에이전트를 봇이라 부르고, 웹과 기업 쪽 문서는 에이전트를 그대로 쓴다. 문서에는 코드에 아직 없는 항목이 `미확정`으로 남아 있다. 동작의 기준은 각 서브모듈 코드다.
+- `docs/`에 제품 설계 문서를 둔다. `PRD.md`, `feature-map.md`, `feature-spec.md`, `tech-stack.md`는 버전 2.0(작성 2026-10-20, 개정 메모 2026-11-13) 초안이고, `api-spec.md`는 버전 2.3(작성 2026-11-13)이다. 모바일 문서는 개인 에이전트를 봇이라 부르고, 웹과 기업 쪽 문서는 에이전트를 그대로 쓴다. 문서에는 코드에 아직 없는 항목이 `미확정`으로 남아 있다. 동작의 기준은 각 서브모듈 코드다.
 - `Makefile`, `compose.yml`, `deploy/Caddyfile`을 둔다.
 
 ## 시작하기
