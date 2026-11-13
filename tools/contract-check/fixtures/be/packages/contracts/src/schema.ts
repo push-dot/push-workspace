@@ -1,3 +1,13 @@
+export interface paths {
+    "/api/v1/bots/{id}/site-grants/{host}": { delete: unknown };
+}
+export interface operations {
+    getBotsByIdSiteGrants: {
+        responses: {
+            200: { content: { "application/json": { data: components["schemas"]["BotSiteGrant"][] } } };
+        };
+    };
+}
 export interface components {
     schemas: {
         BillingStatus: {
@@ -36,6 +46,15 @@ export interface components {
                 kind: string;
             }[];
             text: string;
+        };
+        BotCardAnswer: {
+            id: string;
+            status: "APPROVED" | "REJECTED";
+        };
+        BotSiteGrant: {
+            grantedAt: string;
+            host: string;
+            kind: "posting" | "company" | "other";
         };
         CardRetry: {
             expiresAt: string;

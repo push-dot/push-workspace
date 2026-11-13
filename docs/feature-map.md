@@ -2,7 +2,7 @@
 
 - 버전: 2.0
 - 작성일: 2026-10-20
-- 개정 메모: 2026-11-11
+- 개정 메모: 2026-11-13. 모바일의 개인 에이전트를 봇(Push Bot 하나와 회사마다 봇 하나)으로 바꾼 상태를 3절에 반영했다. 앱 화면의 기준은 2026-11-12 Push 앱 내보내기다
 - 상태: 초안
 - 관련 문서: [PRD.md](PRD.md), [feature-spec.md](feature-spec.md), [api-spec.md](api-spec.md)
 
@@ -13,8 +13,9 @@
 | 기능 | 데스크톱 | 모바일 | fo-web | 주요 API |
 |---|:-:|:-:|:-:|---|
 | 로그인 (개인: Google·GitHub·휴대폰 번호, Apple은 iOS·웹만. Android 앱에는 Apple 버튼 없음 / 기업: Google·이메일) | ● | ● (개인만) | ● (WebView는 토큰 주입) | `/auth/*`, `/auth/email/*`(기업), Apple 로그인 · 휴대폰 번호 인증 · 약관 동의 · 회사 인증 (API 변경 필요) |
-| 에이전트 (목표 Bot 탭, 현재 모바일 라벨 에이전트. 단계 게이트 이력서, 모바일은 Push 전체) | ● | ● | | `/conversations`, `/approvals`, `/bots`(회사 봇 FREE 3 · PRO 20 · ULTRA 무제한) |
-| 내 공고 추가 (링크·텍스트) | ● | ● (에이전트 붙여넣기) | | `/jobs` |
+| 에이전트 (모바일은 봇: Push Bot 하나 + 회사 봇. 데스크톱은 에이전트. 단계 게이트 이력서). Push Bot은 한도에 세지 않고, 한도를 넘는 기존 봇은 남기고 생성만 막는다 | ● | ● | | `/conversations`(데스크톱), `/bots`(회사 봇 FREE 3 · PRO 20 · ULTRA 무제한), `/bots/{id}/messages/stream`, `/approvals` |
+| 봇 홈 · 봇 만들기 · 봇 프로필 · 자료 | | ● | | `/bots`, `/bots/{id}`, `/bots/search`, `/materials` |
+| 내 공고 추가 (링크·텍스트) | ● | ● (봇에 붙여넣기. 봇 만들기에서 링크로 회사 봇도 만든다) | | `/jobs` |
 | 공고 DOM 수집 (내장 브라우저) | ● | | | `/jobs` (`sourceKind: DOM`) |
 | 공고 분석 (갭 분석) | ● | | | `/jobs/{id}/analyze` |
 | 공고 검색 (기업 공고) | | ● | ● (비로그인 가능) | `/postings` |
@@ -28,7 +29,7 @@
 | 문서 작업실 (편집·확정·출력) | ● | | | `/documents` |
 | 역량 보완 프로젝트 (CLI) | ● | | | `/projects` |
 | 면접 준비 (추후) | ● | | | `/interviews` |
-| Push 에이전트로 면접 준비 (지원한 공고 상세 → 에이전트) | | ● | | `/conversations` |
+| Push 봇으로 면접 준비 (지원한 공고 상세 → Push Bot 채팅) | | ● | | `/conversations` |
 | 캘린더 · Google 연동 | ● | ● | ● | `/calendar`, `/integrations/google` |
 | 허브 (프로필·팔로우·제안) | | ● | ● | `/profiles`, `/users`, `/me/profile` |
 | 1:1 메시지 (수락한 제안) | | ● | ● | `/me/offers/{id}/messages` (미확정) |
@@ -40,7 +41,7 @@
 | 담당자 관리 (초대·권한) | | | ● (기업) | `/companies/me/*` (미확정) |
 | 지원자 관리 (단계 변경·알림) | | | ● (기업) | `/postings/{id}/applicants` (미확정) |
 | 기업 AI (공고 생성·서류 검토·면접 준비) | | | ● (기업) | 4.8 기업 AI (미확정) |
-| 참고 데이터 동의 (에이전트 필수) | | ● | | `/me/consents` (미확정) |
+| 참고 데이터 동의 (봇·에이전트 필수) | | ● | | `/me/consents` |
 
 ## 2. 데스크톱 (fo-desktop, 기존)
 
@@ -124,7 +125,7 @@ fo-mobile에는 기업 화면이 없다. 기업 공고 등록, 지원자 관리,
 | 소셜 | `(tabs)/(social)/social.tsx` → `screens/social-screen.{ios,android}.tsx` | 네이티브 |
 | 글쓰기 | `(tabs)/(social)/compose.tsx` | form sheet |
 | 게시물 상세 | `(tabs)/(social)/posts/[id].tsx` | 네이티브 |
-| 에이전트 (현재 라벨 에이전트, 목표 이름 Bot) | `(tabs)/(chat)/chat.tsx` | 네이티브 |
+| 봇 (아이콘만 있는 탭. 봇 홈) | `(tabs)/(bots)/bots.tsx`, 봇 채팅·프로필은 `bots/[botId]` | 네이티브 |
 | 에이전트 대화 | `chat/[id].tsx` (Root Stack, `(tabs)` 밖이라 탭 바가 숨는다) | 네이티브 |
 | 마이 | `(tabs)/(my)/my.tsx` → `screens/my-screen.{ios,android}.tsx` | 네이티브 |
 | 프로필 섹션 편집 | `(tabs)/(my)/edit-profile/[section].tsx` (`basic \| intro \| career \| skills`) | form sheet |

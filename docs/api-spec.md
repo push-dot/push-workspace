@@ -1,21 +1,21 @@
 # Push API 명세
 
-- 버전: 2.2
-- 작성일: 2026-11-11
-- 기준: push-be `develop` `d73240d`, push-fe `develop` `193dbd5`. 코드가 OpenAPI(`packages/contracts/openapi.json`)와 다르면 코드를 따른다.
+- 버전: 2.3
+- 작성일: 2026-11-13
+- 기준: push-be `develop` `f2ce453`, push-fe `develop` `38a04e70`. 코드가 OpenAPI(`packages/contracts/openapi.json`)와 다르면 코드를 따른다.
 - 이전 버전: `docs/api.md` (커밋 `72fe539`에서 삭제)
 - 관련 문서: [PRD.md](PRD.md), [feature-spec.md](feature-spec.md)
 
 ## 1. 범위와 구성
 
-- 클라이언트는 데스크톱(Tauri), 모바일(Expo), fo-web(기업·구직자 웹, 일부 화면은 앱 WebView)이고 모두 같은 API를 쓴다.
+- 클라이언트는 데스크톱(Tauri), 모바일(Expo), fo-web(기업·구직자 웹, 일부 화면은 앱 WebView)이고 모두 같은 API를 쓴다. 모바일 앱은 개인 에이전트를 봇(Push Bot 하나와 회사마다 봇 하나)이라 부르고 웹은 에이전트라 부른다. API 이름은 바뀌지 않는다.
 - 접두사는 `/api/v1`이다. 요청은 gateway Worker가 먼저 받는다. `routes/owner.ts`의 `ownerOf`가 담당을 정한다.
 
 | 담당 | 위치 | 처리하는 요청 |
 |---|---|---|
-| gateway | `services/gateway` | `/healthz`, `GET /auth/me`, 대화 목록·메시지 조회, `GET .../messages/stream/active`, 메시지 스트림의 SSE, `GET /ai/models`, `GET /integrations/job-sites` |
-| core | `services/core-api` | `isCore`에 있는 경로. auth, 대화 쓰기, 서류, 출처, 이미지, 결제, 채용, 허브, 소셜, 회사, 캘린더, Google 연동, `/api/v1/bots` 및 `/api/v1/bots/`로 시작하는 경로(`services/gateway/src/routes/owner.ts`) |
-| ai | `services/ai` | `isPython`에 있는 실행 경로만. 생성, 이력서 실행, 공고 분석, 면접 준비, 문서 개정·내보내기, 근거 가져오기, 프로필 초안, 블루프린트, 검증, operation, approval, 대화 공유·산출물 목록 |
+| gateway | `services/gateway` | `/healthz`, `GET /auth/me`, 대화 목록·메시지 조회, `GET .../messages/stream/active`, 메시지 스트림의 SSE, `GET /ai/models`, `GET /integrations/job-sites`, 봇 채팅의 보내기·스트림·취소(`POST /bots/{id}/messages/stream`, `GET /bots/{id}/stream`, `POST /bots/{id}/stream/cancel`) |
+| core | `services/core-api` | `isCore`에 있는 경로. auth, 대화 쓰기, 서류, 출처, 이미지, 결제, 채용, 허브, 소셜, 회사, 캘린더, Google 연동, `/api/v1/bots` 및 `/api/v1/bots/`로 시작하는 경로와 `/api/v1/materials`(위 gateway 세 경로는 제외, `services/gateway/src/routes/owner.ts`) |
+| ai | `services/ai` | `isPython`에 있는 실행 경로만. 봇 기록(`GET /bots/{id}/transcript`), 생성, 이력서 실행, 공고 분석, 면접 준비, 문서 개정·내보내기, 근거 가져오기, 프로필 초안, 블루프린트, 검증, operation, approval, 대화 공유·산출물 목록 |
 
 - `/internal`과 `/internal/*`는 gateway가 넘기지 않는다.
 - `//`, `%2F`, `%5C`가 들어 있는 경로는 넘기지 않는다.
@@ -93,9 +93,9 @@
 | 200 / 201 / 202 / 204 | 성공: 조회·수정 / 생성 / 비동기 접수 / 본문 없음 |
 | 400 | `VALIDATION_ERROR`, `EMAIL_NOT_VERIFIED`(exchange), `PHONE_CODE_INVALID`, `PHONE_CODE_EXPIRED` |
 | 401 | `UNAUTHENTICATED`, `TOKEN_EXPIRED`, `INVALID_CREDENTIALS` |
-| 403 | `FEATURE_DISABLED`, `FORBIDDEN`, `EMAIL_NOT_VERIFIED`(로그인), `CONSENT_REQUIRED`, `BUSINESS_NOT_VERIFIED`, `PLAN_REQUIRED`, `SEAT_LIMIT`, `BOT_LIMIT`(회사 봇 생성 한도. `details`: `{limit, plan}`), `DEFAULT_BOT_PROTECTED`(Push 봇 삭제·보호) |
+| 403 | `FEATURE_DISABLED`, `FORBIDDEN`, `EMAIL_NOT_VERIFIED`(로그인), `CONSENT_REQUIRED`, `BUSINESS_NOT_VERIFIED`, `PLAN_REQUIRED`, `SEAT_LIMIT`, `BOT_LIMIT`(회사 봇 생성 한도. `details`: `{limit, plan}`), `DEFAULT_BOT_PROTECTED`(Push Bot 삭제·보호) |
 | 404 | `NOT_FOUND` (ai는 405도 `NOT_FOUND`로 돌려준다) |
-| 409 | `REVISION_CONFLICT`, `INVALID_TRANSITION`, `APPROVAL_REQUIRED`, `APPROVAL_STALE`, `UNSUPPORTED_CLAIM`, `INTEGRATION_REQUIRED`, `IDEMPOTENCY_CONFLICT`, `CONFLICT`, `EMAIL_TAKEN`, `PHONE_TAKEN`, `PHONE_ALREADY_REGISTERED`, `ADMIN_TRANSFER_REQUIRED`, `ALREADY_SUBSCRIBED`, `COMPANY_EXISTS` |
+| 409 | `ATTACHMENT_GONE`(`details`: `{kind, id}`), `APPROVAL_SUPERSEDED`, `REVISION_CONFLICT`, `INVALID_TRANSITION`, `APPROVAL_REQUIRED`, `APPROVAL_STALE`, `UNSUPPORTED_CLAIM`, `INTEGRATION_REQUIRED`, `IDEMPOTENCY_CONFLICT`, `CONFLICT`, `EMAIL_TAKEN`, `PHONE_TAKEN`, `PHONE_ALREADY_REGISTERED`, `ADMIN_TRANSFER_REQUIRED`, `ALREADY_SUBSCRIBED`, `COMPANY_EXISTS` |
 | 413 | `PAYLOAD_TOO_LARGE` |
 | 422 | `VERIFICATION_FAILED`, `DOCUMENT_NOT_FINALIZED`, `BUSINESS_NOT_VERIFIED`, `VALIDATION_ERROR`(설정 enum) |
 | 429 | `RATE_LIMITED`(`details.retryAfterSec`. 봇 생성 락 대기 종료·분당 한도 등. 휴대폰 재발송 168초·이메일 60초와 값이 다를 수 있음), `QUEUE_BUSY` |
@@ -123,7 +123,7 @@
   - VPS의 AI 요청 경로는 Postgres `rate_limits`를 쓰지 않는다. Redis가 있으면 Redis이고, 없거나 Redis 오류면 그 프로세스 메모리의 슬라이딩 윈도다.
   - 공개 경로: IP당 분당 60회
 - **본문**: ai는 20MiB가 넘으면 413이다. 필드별 제한은 각 엔드포인트에 적는다.
-- **CORS 허용 Origin**: `tauri://localhost`, `http://tauri.localhost`, `https://tauri.localhost`, localhost와 127.0.0.1(모든 포트). fo-web 운영 Origin은 없다(6장).
+- **CORS 허용 Origin**: `tauri://localhost`, `http://tauri.localhost`, `https://tauri.localhost`, localhost와 127.0.0.1(모든 포트). fo-web 배포 Origin은 gateway가 허용한다(push-be #285).
 - **허용 헤더**: `Origin`, `Content-Type`, `Accept`, `Authorization`, `Idempotency-Key`, `X-Request-Id`. preflight `Access-Control-Max-Age`는 600초다.
 - **허용 메서드**: GET, POST, PATCH, PUT, DELETE, OPTIONS
 
@@ -138,7 +138,7 @@
 
 ### 2.7 크레딧
 
-화면에는 크레딧 숫자를 보여주지 않는다. 원장과 `costMicroCredits` 같은 내부 이름은 그대로 둔다. 표시 단위 1크레딧은 6000 마이크로크레딧이다.
+화면에는 크레딧 숫자를 보여주지 않는다. 모바일이 월 한도를 알아차리는 신호는 보내기와 카드 답에서 오는 402 `INSUFFICIENT_CREDITS`다(enqueue에서 막는다). 앱은 이 신호로 채팅 머리의 한도 배너를 띄운다. 다시 채워지는 날은 `GET /billing`의 `creditsRefillAt`(다음 UTC 월의 첫 순간)이고, ULTRA가 아닌 요금제는 플랜 업그레이드, ULTRA는 크레딧 구매로 이어지며 충전하면 막힘이 풀린다. 원장과 `costMicroCredits` 같은 내부 이름은 그대로 둔다. 표시 단위 1크레딧은 6000 마이크로크레딧이다.
 
 | 대상 | 요금제 | 월 마이크로크레딧 | 표시 크레딧 |
 |---|---|---|---|
@@ -192,7 +192,7 @@
 
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
-| `GET /conversations` | page, `applicationId`, `q`, `audience`(`PERSONAL\|EMPLOYER`, 기본 PERSONAL), `archived`(`true`만 보관 목록) | page. 기본 목록은 `archived=false`. 기업 audience에 회사가 없으면 403 `BUSINESS_NOT_VERIFIED`. 항목 `{id, revision, applicationId, title, pinned, createdAt, updatedAt, status, lastMessagePreview, createdBy:{displayName}, postingId}`. status는 `NEEDS_APPROVAL\|RUNNING\|DONE` |
+| `GET /conversations` | page, `applicationId`, `q`, `audience`(`PERSONAL\|EMPLOYER`, 기본 PERSONAL), `archived`(`true`만 보관 목록) | page. 기본 목록은 `archived=false`. 기업 audience에 회사가 없으면 403 `BUSINESS_NOT_VERIFIED`. 항목 `{id, revision, applicationId, title, pinned, createdAt, updatedAt, status, lastMessagePreview, createdBy:{displayName}, postingId}`. status는 `NEEDS_APPROVAL\|RUNNING\|DONE`. 봇 대화는 이 목록에 나오지 않고, 이 항목에 `botId`도 없다. `/conversations/{id}` 아래 모든 경로는 봇 대화 id에 404를 돌려준다 |
 | `POST /conversations` 🔑 | `title*`(≤300), `applicationId`, `audience`(`PERSONAL\|EMPLOYER`), `postingId` | 201 Conversation. 개인은 참고 데이터 동의가 없으면 403 `CONSENT_REQUIRED` "reference data consent is required". 기업은 사업자 확인 전이면 403 `BUSINESS_NOT_VERIFIED` |
 | `PATCH /conversations/{id}` | `expectedRevision*`, `title`, `pinned` | Conversation |
 | `DELETE /conversations/{id}` | – | 204 |
@@ -235,10 +235,13 @@
 
 - 첫 프레임은 `retry: 400`이다. `event:` 줄은 없다. `id: <seq>`와 `data: {..., seq}`다.
 - `{type:"token", text, seq}`
-- `{type:"status", text, seq}`
+- `{type:"status", text, seq}`. 봇 채팅에서는 `phase`(`queued\|thinking\|working\|waiting`), `since`, `ahead`(대기), `for`와 `cardId`(기다림)가 붙는다. 마지막으로 `phase`가 있는 `status`가 작업의 현재 단계다
+- `{type:"notice", text, seq}`. 한 단계가 실패했지만 작업이 이어질 때 이용자에게 보여 줄 문장. 모르는 클라이언트는 무시한다
 - `{type:"error", error:{code, message, details}, seq}`
-- `{type:"done", operation, awaiting?, seq}`
-- `{type:"cancelled", seq}`
+- `{type:"done", operation, awaiting?, sources?, seq}`. 봇 차례의 `operation.result.value`는 메시지 전문이 아니라 메시지 id(`{assistantMessageId, userMessageId?, approvalIds}`)다. `sources`는 답에 쓴 출처다
+- `{type:"cancelled", resumable?, seq}`. `resumable`은 문서 흐름이 살아 있어 다음 메시지가 이어 가는 경우 true다
+- 봇 채팅의 모든 프레임에는 `at`(ISO 시각)과 `turn`(불투명한 차례 id)이 붙는다. 모든 작업은 `done`, `error`, `cancelled` 중 하나로 끝나며, 작업 상태를 바꾸는 트리거(`0055`)가 이를 보장한다. 쓰이지 않은 채 `DEAD`나 `FAILED`로 끝나면 `error` 코드 `JOB_FAILED`다
+- `token` 프레임 사이에 `status`만 있으면 같은 글 한 덩어리다. 그 밖의 프레임이 끼면 새 덩어리다. `tool`과 `think`는 웹을 위해 남고 앱은 그리지 않는다
 - 그 밖은 `{type, ...payload, seq}`다. 결과와 확인 카드가 여기 들어간다.
 - 빈 조회는 `: ping`을 보낸다. 주기는 250ms에서 시작해 두 배씩 늘리고 1000ms에서 멈춘다. 한 페이지가 200건이면 ping도 sleep도 없다.
 - `SSE_MAX_POLLS` 기본 20이다. 횟수를 다 쓰면 오류 프레임 없이 연결을 닫는다. 앱은 `GET /conversations/{id}/messages/stream/active?after=<마지막 seq>`로 다시 붙는다. `after`가 없으면 쿼리에서 뺀다. `Last-Event-ID` 헤더는 보내지 않는다. `done|error|cancelled`까지 반복한다.
@@ -287,9 +290,11 @@
 
 결과 제시. 프로필 기본 제목은 "Push 프로필에 저장했어요. 결과를 확인할까요?"이고 안내 "PDF는 Push 프로필에서 내보낼 수 있어요."를 붙인다. 외부 파일이 저장되면 "내 서류에 저장했어요. 결과를 확인할까요?". 저장에 실패하면 "내 서류에 저장하지 못했어요. 결과를 확인할까요?".
 
+**페이지 읽기 카드** (봇 채팅의 `approval`, 도구 카드). 봇이 스스로 고른 페이지를 열기 전에 묻는다. 선택지 id는 `approve`(한 번 허용), `approve_always`(그 봇과 그 사이트 항상 허용), `reject`(거절)다. 카드는 10분 안에 답이 없으면 만료돼 `expiresAt`이 지나고, 앱은 닫기와 다시 요청(`POST /bots/{id}/approvals/{cardId}/retry`)을 보인다. 선택지·수명·꼬리말은 `harness/approval.py` 표 한 곳이 정한다. 선택 카드와 수정 카드에는 `expiresAt`이 없다. 이용자가 이 봇에게 준 주소(같은 대화의 메시지에 든 링크, 이 대화에 붙인 링크 자료, 내 자료 읽기 허용이 켜진 때의 저장한 링크)는 카드 없이 읽고, 어떤 실행 방식에서도 마찬가지다. 허용은 한 사이트(host)에만 미친다. 다른 사이트로 넘어가는 리디렉션은 멈추고, 그 사이트를 읽으려면 새로 묻는다. 항상 허용은 `bot_site_grants(bot_id, host)`에 저장되고 봇을 지우면 함께 지워진다. 이 카드는 3.4의 `approvals` 승인 종류 넷과 별개다.
+
 `review` 선택지는 `CLASSIC|MODERN|COMPACT|ATS`다. `AUTO`는 카드에서 멈춘다. `BYPASS`는 `mode_select`, `validate_cap`, 첨부가 없는 `intake`를 빼고 자동으로 답한다.
 
-에이전트 서류 목록. 문서 목록(기본 limit 50)과 출처 `origin IN ('UPLOAD','AI')` 최신 50건(`created_at DESC, id DESC`)을 함께 본다. 올린 파일이 들어간다. 이름 `.md` 또는 mime `text/markdown`은 뺀다.
+서류 목록(웹의 에이전트). 문서 목록(기본 limit 50)과 출처 `origin IN ('UPLOAD','AI')` 최신 50건(`created_at DESC, id DESC`)을 함께 본다. 올린 파일이 들어간다. 이름 `.md` 또는 mime `text/markdown`은 뺀다.
 
 ### 3.4 approvals (ai)
 
@@ -496,7 +501,7 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 | `POST /billing/webhook/app-store` | 공개. raw JWS 또는 `{signedPayload}` | 200 |
 | `POST /billing/webhook/google-play` | 공개. JSON과 `Authorization: Bearer` OIDC RS256. iss `https://accounts.google.com`, aud `GOOGLE_OIDC_AUDIENCE` | 200 |
 
-`GET /billing` 필드: `subscriptionStatus`, `plan`, `periodEndsAt`, `balanceMicroCredits`, `reservedMicroCredits`, `monthlyMicroCredits`, `spentMicroCredits`, `audience`, `source`. `usagePercent`와 리셋 날짜는 없다. 잔액은 최신 원장 `balance_after`에서 정산된 `ai_usage`와 열린 `credit_reservations`를 뺀 값이다. `reservedMicroCredits`는 `RESERVED` 합이다. `spentMicroCredits`는 이번 UTC 월에 정산된 사용량이다. 기업 `periodEndsAt`은 항상 null이다. 개인 `periodEndsAt`은 구독 종료다. 개인 `source`는 활성 인앱이면 `APP_STORE|GOOGLE_PLAY`, 아니면 구독이 `ACTIVE`일 때 `STRIPE`, 아니면 null이다. 기업 `source`는 plan이 있으면 `STRIPE`, 없으면 null이다. 화면 퍼센트는 `spentMicroCredits / monthlyMicroCredits`로 계산한다.
+`GET /billing` 필드: `subscriptionStatus`, `plan`, `periodEndsAt`, `balanceMicroCredits`, `reservedMicroCredits`, `monthlyMicroCredits`, `spentMicroCredits`, `audience`, `source`, `creditsRefillAt`(선택. 다음 UTC 월의 첫 순간). `usagePercent`는 없다. 잔액은 최신 원장 `balance_after`에서 정산된 `ai_usage`와 열린 `credit_reservations`를 뺀 값이다. `reservedMicroCredits`는 `RESERVED` 합이다. `spentMicroCredits`는 이번 UTC 월에 정산된 사용량이다. 기업 `periodEndsAt`은 항상 null이다. 개인 `periodEndsAt`은 구독 종료다. 개인 `source`는 활성 인앱이면 `APP_STORE|GOOGLE_PLAY`, 아니면 구독이 `ACTIVE`일 때 `STRIPE`, 아니면 null이다. 기업 `source`는 plan이 있으면 `STRIPE`, 없으면 null이다. 화면 퍼센트는 `spentMicroCredits / monthlyMicroCredits`로 계산한다.
 
 스토어 webhook은 해지 때 원장 행을 넣지 않는다. `REFUND|EXPIRED|REVOKE|GRACE_PERIOD_EXPIRED`는 `iap_subscriptions.status=CANCELED`, 사용자 plan `FREE`, `subscription_status=CANCELED`다. `PURCHASE|RENEWAL|SUBSCRIBED|DID_RENEW`는 그 거래 id가 이미 claim된 뒤에만 크레딧 또는 plan과 `PURCHASE`를 넣는다. 모르는 type은 200이고 쓰지 않는다. `iap_subscriptions` 행이 없는 첫 구매는 무시한다.
 
@@ -504,31 +509,62 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 
 `GET /experiments/{key}/assignment` · `POST /experiments/{key}/events` 🔑 `{event*}` → 201 · `GET /experiments/{key}/stats` · `GET /experiments/{key}/results`
 
-### 3.17 봇 (core)
+### 3.17 봇 (core, 채팅 스트림은 gateway, 기록은 ai)
 
-계약: `packages/contracts/spec/bots.ts`, `services/core-api/src/routes/bots.ts`.
+계약: `packages/contracts/spec/bots.ts`, `services/core-api/src/routes/bots.ts`, `bot-chat.ts`, `bot-approvals.ts`, `materials.ts`. 앱은 개인 에이전트를 봇이라 부른다. 개인 앱은 모든 것을 봇 기준으로 부르고, 봇에는 대화가 하나뿐이다. 그 대화를 담는 `conversations` 행은 서버만 안다. 봇 경로의 본문과 스트림 프레임은 그 id를 싣지 않는다.
+
+모든 `/bots/{id}*` 경로에서 `{id}`는 봇 uuid이거나 문자열 `push`다. `push`는 호출자의 Push Bot이고, core의 `resolveBot`이 없으면 만든다. 클라이언트는 Push Bot의 id를 계산하지 않는다.
+
+**봇 관리 (core)**
 
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
-| `GET /bots` | – | 200 `{data: Bot[]}`. Push 봇을 없으면 만들고, Push 봇을 먼저, 회사 봇은 `updatedAt` 내림차순 |
-| `POST /bots` 🔑 | 회사 봇 생성 | 201. 한도 초과 403 `BOT_LIMIT` |
-| `POST /bots/link-preview` 🔑 | `{url}` | `found`면 `company`, `title`, `postingId`. 아니면 `{status:"not_a_posting"}` |
-| `GET /bots/companies/search` | `q*` | `{name, openPostingCount}` 페이지 |
-| `GET /bots/{id}` | – | Bot |
-| `PATCH /bots/{id}` | `expectedRevision*`, `displayName`, `notificationsMuted`, `avatarKey`, `mascotKey` | Bot. 409 `REVISION_CONFLICT` |
-| `DELETE /bots/{id}` | – | 회사 봇 소프트 삭제(`deleted_at`). Push 봇은 403 `DEFAULT_BOT_PROTECTED`. 204. 대화 행은 지우지 않음 |
-| `GET /bots/{id}/conversations` | page | `bot_id`가 그 봇이고 보관되지 않은 대화, 커서 페이지 |
-| `POST /bots/{id}/conversations` 🔑 | `{title}`(≤300), `applicationId`(선택) | 201. 참고 데이터 동의 없으면 403 `CONSENT_REQUIRED`. `conversations.bot_id`를 넣고 봇의 `company_id`, `posting_id`를 복사 |
-| `POST /bots/{id}/read` 🔑 | `{readAt}` | `bot_read_markers` upsert |
-| `GET /bots/{id}/library` | `limit`(기본 50, 최대 100), `section`(`conversations`\|`files`\|`links`), 커서 | 아래 |
+| `GET /bots` | `postingId`(uuid, 선택) | 200 `{data: Bot[], limit?}`. `postingId`가 없으면 Push Bot을 먼저, 회사 봇은 `lastActivityAt` 내림차순(같으면 `id` 내림차순). 페이지 없음. `limit`은 `{plan, max, used, table}`이고 Push Bot은 세지 않는다. `postingId`가 있으면 그 공고 회사의 내 회사 봇이 0개 또는 1개이고 `limit`은 없다 |
+| `POST /bots` 🔑 | 닫힌 본문 `{postingId*, displayName?(1–120), color?}`. 다른 키는 400이다. `companyId`, `companyName`, `postingUrl`도 거절한다 | 새로 만들면 201 Bot. 그 회사 봇이 이미 있으면 200 Bot이고 본문의 이름과 색은 무시한다. 403 `CONSENT_REQUIRED`, 생성 경로에서만 403 `BOT_LIMIT`(`details`: `{limit, plan}`), 404(없는 공고), 429 `RATE_LIMITED` |
+| `POST /bots/link-preview` 🔑 | `{url*}` | `{status:"found", postingId, company, title, deadline, careerMin, careerMax, location, host}` 또는 `{status:"not_a_posting"}`. Push가 이미 가진 공고만 찾는다. 밖의 페이지는 가져오지 않는다 |
+| `GET /bots/search` | `q*`(≤200), `cursor`, `limit`(20, 최대 50) | 200 `{data: {bots, botTotal, messages, messageTotal}, page}`. `bots`는 이름·회사·공고 제목에 `q`가 든 봇(각각 `line` 포함), `messages`는 봇 대화 메시지(`snippet`)이고 `page`는 메시지 쪽을 넘긴다. 400(`q`) |
+| `GET /bots/{id}` | – | 200 BotDetail(`Bot` + `posting`, `fit`, `materialCount`). 404 |
+| `PATCH /bots/{id}` | `expectedRevision*`, `displayName`, `notificationsMuted`, `color`. `avatarKey`와 `mascotKey`는 거절한다. Push Bot은 `notificationsMuted`만 받는다 | 200 Bot(상태 포함). 409 `REVISION_CONFLICT`(`details`: `{currentRevision}`) |
+| `DELETE /bots/{id}` | – | 204. 봇 행을 지우고 대화, 메시지, 작업, 이벤트, 카드, 작업 공간 파일, 작업 완료 알림, 읽음 표시, 사이트 허용이 연쇄로 함께 지워진다. 모델 체크포인트는 같은 트랜잭션에서 트리거(0057)가 지우고 15분마다 남은 것을 쓸어 담는다. 그 달 사용량 행은 남는다. Push Bot은 403 `DEFAULT_BOT_PROTECTED` |
+| `DELETE /bots/{id}/transcript` | – | 204. 대화 행만 지워서 위와 같이 연쇄로 지운다. 봇, 설정, 읽음 표시, 사이트 허용은 남는다. 대화가 없는 봇도 204. 지운 대화는 되살릴 수 없다 |
+| `POST /bots/{id}/read` 🔑 | – | 200 `{readAt}`. 첫 목록 전에도 `push`로 부를 수 있다 |
 
-`Bot`: `id`, `kind`(`push`\|`company`), `displayName`, `companyId`, `companyName`, `postingId`, `postingUrl`, `avatarKey`, `mascotKey`, `notificationsMuted`, `revision`, `createdAt`, `updatedAt`, `lastMessagePreview`(최대 140자), `unread`, `status`(`DONE`\|`RUNNING`\|`NEEDS_APPROVAL`).
+**봇 채팅**
 
-Push 봇 id는 `push:bot:{userId}`의 UUID5, 표시 이름 `Push Bot`.
+담당은 경로마다 다르다. 보내기, 스트림, 취소는 gateway, 답과 다시 요청은 core, 기록은 ai(Python), 검색은 core다. 봇 대화는 `GET /conversations` 목록에 나오지 않고, `/conversations/{id}` 아래 모든 경로는 봇 대화 id에 404 `NOT_FOUND`를 돌려준다(gateway 가드 하나). 봇 대화가 없는 기존 대화는 그대로다.
 
-회사 봇 한도(Push 봇은 제외): FREE 3, PRO 20, ULTRA `null`(무제한). 알 수 없는 요금제는 FREE 3. ULTRA는 `limit === undefined`일 때만 FREE 3으로 떨어지던 `??` 버그를 고쳤다(#276). FREE·PRO 생성은 트랜잭션 안에서 `lock_timeout` 3초, `SELECT id FROM users WHERE id = $1 FOR NO KEY UPDATE` 후 count·INSERT. 락 타임아웃(55P03)은 429 `RATE_LIMITED`, `retryAfterSec` 1. 검증과 Push 봇 ensure는 트랜잭션 밖. 회사 이름 유니크는 없다. 같은 회사로 다시 POST하면 새 행. 기존 대화 `bot_id`는 `0052`가 채우지 않고, 새 대화만 `POST /bots/{id}/conversations`에서 연결.
+| 메서드·경로 | 요청 | 응답 |
+|---|---|---|
+| `POST /bots/{id}/messages/stream` | `SendBody{text*(1–20000), attachments?(≤10), intent?, accessMode?, ai?}`. `attachments`는 `{kind: file\|document\|posting\|link, id}` | 200 SSE. 첫 보내기에서 대화를 만든다. 스트림은 종료 이벤트 뒤에만 닫힌다. 403 `CONSENT_REQUIRED`, 402 `INSUFFICIENT_CREDITS`, 429 `QUEUE_BUSY`(`retryAfterSec`, `ahead`), 409 `ATTACHMENT_GONE`(`{kind, id}`), 404(보내는 중 봇이 지워진 경우도) |
+| `GET /bots/{id}/stream` | `after`(seq) 또는 `Last-Event-ID` | 진행 중 작업을 `after`부터 다시 이어 준다. 돌고 있는 작업이 없으면 204 |
+| `POST /bots/{id}/stream/cancel` 🔑 | – | 200 `{status:"CANCELLED", resumable}`. 돌고 있는 작업이 없으면 409 `CONFLICT` |
+| `POST /bots/{id}/approvals/{cardId}` 🔑 | `optionId` 또는 `optionIds` | 200 `{id, status, optionId}`. 실행이 이어지면 202이고 앱은 `GET /bots/{id}/stream`을 따라간다. 403 `CONSENT_REQUIRED`, 402 `INSUFFICIENT_CREDITS`, 409 `APPROVAL_ALREADY_RESOLVED`, 410 `APPROVAL_EXPIRED`(`reject`는 만료 뒤에도 200으로 카드를 닫는다) |
+| `POST /bots/{id}/approvals/{cardId}/retry` 🔑 | – | 200 `{id, status:"PENDING", openedAt, expiresAt}`. 새 메시지가 그 뒤에 왔으면 409 `APPROVAL_SUPERSEDED` |
+| `GET /bots/{id}/transcript` | `cursor`, `limit`(30, 최대 100) | ai. 200 `{data: Turn[], page, live}`. 최신 차례가 먼저이고 `live`는 첫 페이지에만 있다(`{turnId, lastSeq}`) |
+| `GET /bots/{id}/transcript/matches` | `q*`(≤200) | 200 `{data:{total, items:[{messageId, turnId, at}]}}`. 최신순, 최대 200건 |
 
-라이브러리: `section` 없으면 세 칸 모두, 있으면 해당 섹션만 채우고 나머지는 빈 페이지. 커서 `conversationCursor`, `fileCursor`, `linkCursor`. 대화는 그 봇의 보관되지 않은 대화. 파일은 그 봇 대화에 붙은 source·document(마크다운 이름·mime 제외). 링크는 봇 `posting_url`과 같거나, 그 봇 대화 본문 URL이 들어 있는 `user_links`.
+한 차례(`Turn`)는 `{id, status, createdAt, user, answer, events, assistant}`이다. `events`에는 `done`이 없고, 붙어 있는 `token`은 하나로 합쳐지며, 종료 이벤트는 첫 번째만 남는다. 진행 중인 차례는 단계(`phase`)가 있는 `status`를 모두 남기고, 끝난 차례는 기다림(`waiting`)만 남긴다. 카드 이벤트에는 `resolution`, `openedAt`, `expiresAt`, `retryable`이 붙는다. `assistant.sources`는 답에 쓴 출처다.
+
+**자료 (core)**
+
+| 메서드·경로 | 요청 | 응답 |
+|---|---|---|
+| `GET /materials` | `tab`(`all\|doc\|bookmark\|link`, 기본 `all`), `q`(≤200), `bot`(uuid 또는 `push`), `cursor`, `limit`(20, 최대 100) | 200 `{data:{counts, sections}}`. `counts`는 `doc`, `bookmark`, `link` 셋을 항상 담고 `q`로 거른다. `tab=all`은 세 구간을 미리보기 길이(서류 4, 북마크 3, 링크 3)로 자르고 `nextCursor`가 없다 |
+| `GET /materials/{kind}/{id}` | – | 200 Material + `usedBy`(붙였거나 읽은 봇과 만든 봇). 404 |
+| `DELETE /materials/{kind}/{id}` | – | 204. 종류마다 규칙이 다르다. `file`은 원본을 지우고 경력 근거가 참조하면 409 `INVALID_TRANSITION`(`reason: REFERENCED_BY_EVIDENCE`), `document`는 30일 보관함으로 보내고, `posting`은 북마크를 풀고, `link`는 소프트 삭제한다 |
+| `POST /materials/{kind}/{id}/restore` 🔑 | – | 204. 지운 자료를 되돌린다 |
+
+`kind`는 `file\|document\|posting\|link`다. `Material`은 종류별 합타입이고 서류(`file`, `document`)에는 `origin`(`UPLOAD\|AI`)과 만든 봇 `createdBy`가 있다. 링크 항목에는 `linkKind`, `host`, `addedAt`, `lastCheckedAt`, `lastCheckOk`가 있다. 링크 종류는 저장된 다섯 가지 그대로이고 `linkedin`은 종류가 아니다. LinkedIn 표시는 `host`로 앱이 만든다. `lastCheckedAt`은 봇이 그 링크를 열었을 때만 쓰며 따로 도는 링크 검사는 없다. 북마크 날짜(`bookmarkedAt`)는 `/me/bookmarks`가 아니라 `GET /materials`에서 온다.
+
+`Bot`: `id`, `kind`(`push`\|`company`), `displayName`(Push Bot 또는 회사 이름), `companyName`(Push Bot은 빈 문자열), `color`(11가지 이름. Push Bot은 null), `postingId`(만든 공고. 공고가 사라지면 null), `notificationsMuted`, `revision`, `createdAt`, `lastActivityAt`, `lastMessage`(`{preview, at, fromBot}`. `preview`는 최대 140자), `unread`, `activity`. `activity`는 아무것도 돌지 않고 열린 카드도 없으면 null이고, 아니면 `{phase: queued\|thinking\|working\|waiting, since, ...}`다. `queued`는 `ahead`, `thinking`과 `working`은 `label`, `waiting`은 `for`(`answer\|confirm`), `cardId`, `cardTitle`, `expiresAt`을 더한다. 서버는 마스코트 상태를 이름 붙이지 않는다. `activity`와 `unread`는 사실이고, 다섯 상태와 우선순위는 앱의 규칙이다. S12가 끝날 때까지 `companyId`(항상 null), `avatarKey`, `mascotKey`, `postingUrl`, `updatedAt`, `lastMessagePreview`, `status`가 옛 앱을 위해 남아 있으며 새 코드는 읽지 않는다.
+
+Push Bot 표시 이름은 `Push Bot`이다. 회사 봇 한도(Push Bot은 제외): FREE 3, PRO 20, ULTRA 무제한(`max: null`). 알 수 없는 요금제는 FREE 3이다. FREE·PRO 생성은 트랜잭션 안에서 `lock_timeout` 3초, 사용자 행 `FOR NO KEY UPDATE` 뒤에 센다. 락 타임아웃(55P03)은 429 `RATE_LIMITED`(`retryAfterSec` 1)다.
+
+한 회사에 봇은 하나(`bots.company_key = lower(btrim(company_name))`, 사용자별 유일 인덱스)이고 한 봇에 대화는 하나(`conversations_bot_thread_uidx`)다. 봇은 항상 공고에서 만든다. 공고가 없는 회사 이름으로는 만들지 않는다. 봇이 생기기 전의 대화는 옮기거나 합치거나 지우지 않는다. 웹을 위해 대화 API에 그대로 남는다.
+
+**제거된 경로**: `GET /bots/{id}/conversations`, `POST /bots/{id}/conversations`, `GET /bots/{id}/library`, `GET /bots/companies/search`. 대화는 첫 보내기가 만들고, 자료는 `/materials`가, 공고 후보는 `GET /postings?q=`가 대신한다.
+
+**상태 이벤트 규칙**은 3.3의 SSE 규칙을 따른다. 작업 완료 알림은 `recordAiDone`이 한 곳에서 정한다. 봇 대화는 `notify_ai_done`이 꺼졌거나 봇이 음소거됐거나 이미 읽었으면 건너뛰고, 작업 id로 중복을 막으며, 제목 "봇 작업 완료", 본문은 마지막 메시지 미리보기, 대상 `{kind:"bot", id}`다. 카드에서 끝난 차례, 취소, 실패에는 알리지 않는다.
 
 ## 4. 채용 · 허브 · 소셜 · 회사
 
@@ -536,7 +572,7 @@ Push 봇 id는 `push:bot:{userId}`의 UUID5, 표시 이름 `Push Bot`.
 
 ### 4.1 공고
 
-기업 공고(`job_postings`, 마감되지 않은 것)를 찾는다. 모바일에는 공고 추가 화면이 없다. 모바일 내 공고는 에이전트에 붙여넣은 링크·본문으로 만든다(`jobs`, `sourceKind: URL|TEXT`).
+기업 공고(`job_postings`, 마감되지 않은 것)를 찾는다. 모바일에는 공고 추가 화면이 없다. 모바일 내 공고는 봇에 붙여넣은 링크·본문으로 만든다(`jobs`, `sourceKind: URL|TEXT`).
 
 #### `GET /postings`
 
@@ -638,7 +674,7 @@ Push 봇 id는 `push:bot:{userId}`의 UUID5, 표시 이름 `Push Bot`.
 | `POST /me/links/{id}/restore` 🔑 | – | 소프트 삭제 뒤 되돌림 |
 | `POST /me/devices` 🔑 | `token*`(1–4096), `platform*`(`ios\|android`) | 201 `{token, platform}` |
 | `DELETE /me/devices/{token}` | 경로 값이 토큰이다. OpenAPI 이름만 `{id}` | 204. 없어도 204 |
-| `GET /me/notifications` | page | `{id, type(DEADLINE\|OFFER\|COMMENT\|AI_DONE\|APPLICATION_STAGE), title, body, target, readAt, createdAt}` |
+| `GET /me/notifications` | page | `{id, type(DEADLINE\|OFFER\|COMMENT\|AI_DONE\|APPLICATION_STAGE), title, body, target, readAt, createdAt}`. 봇 대화의 `AI_DONE`은 제목 "봇 작업 완료", 대상 `{kind:"bot", id}`이고, 음소거한 봇과 이미 읽은 봇에는 만들지 않는다(3.17). 봇이 없는 대화는 예전 제목과 `{kind:"conversation", id}`다. 앱은 `POST /me/devices`로 기기를 등록해야 푸시를 받는다 |
 | `GET /me/notifications/unread` | – | `{count}` |
 | `POST /me/notifications/read` 🔑 | `all:true` 또는 `ids` | 읽음 |
 | `GET` · `PATCH /me/settings` | 아래 | Settings |
@@ -706,7 +742,7 @@ Profile: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, c
 
 ## 5. DB
 
-스키마는 push-be `db/migrations/0001_init.sql`부터 `0052_bots.sql`까지다. 라우트가 이 컬럼을 읽는다. 배포 절차는 이 문서가 적지 않는다. `0001`–`0046`은 이전 버전과 같다.
+스키마는 push-be `db/migrations/0001_init.sql`부터 `0059_approval_asks_again.sql`까지다. 라우트가 이 컬럼을 읽는다. 배포 절차는 이 문서가 적지 않는다. `0001`–`0046`은 이전 버전과 같다.
 
 | 파일 | 요지 |
 |---|---|
@@ -716,16 +752,22 @@ Profile: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, c
 | `0050_application_applicant_snapshot.sql` | `applications.applicant_snapshot jsonb`, 기존 행 NULL |
 | `0051_conversation_list_ai_jobs.sql` | 대화 목록용 `ai_jobs` 부분 인덱스. API 필드 변경 없음(#272) |
 | `0052_bots.sql` | `bots`, `bot_read_markers`, `conversations.bot_id`. 기존 대화 UPDATE 없음 |
+| `0053_bot_identity.sql` | `bots.color`(11가지 검사), 생성된 `bots.company_key`와 사용자별 유일 인덱스, 대화의 `bot_id` 유일 인덱스와 `ON DELETE CASCADE`, `workspace_files.conversation_id`와 `notifications.conversation_id`의 연쇄 키. 중복 봇은 소프트 삭제하고 봇 뒤의 대화는 떼어 낸다 |
+| `0054_bot_state.sql` | 상태 인덱스와 뷰 `bot_state_v`(마지막 메시지, 열린 카드, 진행 단계, 순번, 마지막 활동, 읽지 않음). 이전 채팅 작업 기록에서 메시지 본문을 지우고 id만 남긴다 |
+| `0055_job_end_event.sql` | 종료 이벤트 없이 끝난 채팅 작업에 이벤트를 쓰는 트리거 `ai_jobs_end_event`, 함수 `chat_run_resumable` |
+| `0056_materials.sql` | `sources.created_by_bot_id`, `documents.created_by_bot_id`, `user_links.last_checked_at`, `last_check_ok`, 첨부 GIN 인덱스. 링크 종류는 그대로 |
+| `0057_thread_erase_checkpoints.sql` | 대화가 지워질 때 같은 트랜잭션에서 모델 체크포인트를 지우는 트리거 |
+| `0058_bot_site_grants.sql` | `bot_site_grants(bot_id, host)`. 봇을 지우면 연쇄로 지운다 |
+| `0059_approval_asks_again.sql` | 수명이 있는 도구 카드만 다시 요청할 수 있다는 규칙(`approval_expires`)을 한 곳에 둔다 |
 
-적용 메모(2026-11-11): `0047`–`0052`는 staging에 적용됐고 prod에는 아직 없다는 운영 메모가 있다. 이 저장소와 GitHub PR 본문만으로는 Neon 적용 로그를 확인하지 못했다(#269 머지 시점 본문은 staging·prod 모두 미적용). 적용 완료를 배포 절차처럼 단정하지 않는다.
+적용 메모(2026-11-11): `0053`–`0059`는 develop에 머지됐을 뿐 어느 환경에도 적용했다고 적지 않는다. 적용은 `Migrate database` 워크플로를 소유자가 돌릴 때다. `0047`–`0052`는 staging에 적용됐고 prod에는 아직 없다는 운영 메모가 있다. 이 저장소와 GitHub PR 본문만으로는 Neon 적용 로그를 확인하지 못했다(#269 머지 시점 본문은 staging·prod 모두 미적용). 적용 완료를 배포 절차처럼 단정하지 않는다.
 
 ## 6. 남은 차이
 
-- fo-web 운영 Origin이 CORS 허용 목록에 없다.
 - 개인 최근 검색 목록과 모두 지우기가 없다. 많이 찾는 검색어는 `GET /search/trending`이다.
 - "이번 주 많이 본 공고" 경로가 없다. `sort=popular`는 전체 기간 조회수다.
 - 서류 보관은 `POST /documents/{id}/restore`, 내 링크는 `POST /me/links/{id}/restore`로 되돌린다. 경력 근거(source) 삭제는 되돌리는 경로가 없고, 근거가 참조하면 409다.
 - 별도 `/offers` 리소스는 없다. 허브 제안은 4.3이다.
 - 재직 회사 이메일 인증 API가 없다.
 - 요금제를 내리는 전용 경로가 없다. 포털은 사용자 Stripe 고객 id만 연다.
-- `GET /billing`에 `usagePercent`와 리셋 날짜 필드는 없다. 퍼센트는 `spentMicroCredits / monthlyMicroCredits`이고, 다시 채움은 UTC 월 지급이다.
+- `GET /billing`에 `usagePercent` 필드는 없다. 퍼센트는 `spentMicroCredits / monthlyMicroCredits`이고, 다시 채움은 UTC 월 지급이며 날짜는 `creditsRefillAt`이다.

@@ -6,11 +6,11 @@
 
 ---
 
-**Push**는 개인용 모바일 앱, 개인·기업 웹, 그리고 그 뒤의 API로 이루어진다. 모바일에서 공고를 보고 에이전트(AI 채팅)로 대화를 이어 가고, 웹에서는 같은 계정의 공고·허브·소셜과 기업 채용 업무를 다룬다. 이력서 워크플로는 서버의 단계 게이트를 거치고, 근거 검색은 pgvector로 한다.
+**Push**는 개인용 모바일 앱, 개인·기업 웹, 그리고 그 뒤의 API로 이루어진다. 모바일에서 공고를 보고 봇(Push Bot 하나와 회사마다 봇 하나, 웹에서는 에이전트라 부른다)과 대화를 이어 가고, 웹에서는 같은 계정의 공고·허브·소셜과 기업 채용 업무를 다룬다. 이력서 워크플로는 서버의 단계 게이트를 거치고, 근거 검색은 pgvector로 한다.
 
 이 저장소(`push-workspace`)는 제품 문서와 서브모듈 핀을 둔다. 앱 코드는 [push-fe](https://github.com/push-dot/push-fe), 웹·모바일 앱 저장소는 [fo-web](https://github.com/push-dot/fo-web)·[fo-mobile](https://github.com/push-dot/fo-mobile), API 코드는 [push-be](https://github.com/push-dot/push-be)에 있다. `.gitmodules`의 브랜치는 `develop`이다.
 
-이 저장소가 핀한 서브모듈 커밋은 push-be `766a635`, push-fe `9911f12`이다. 이미 받은 클론은 `git submodule update --init --recursive`로 중첩 서브모듈까지 받는다. 동작의 기준은 각 서브모듈 develop이다.
+이 저장소가 핀한 서브모듈 커밋은 push-be `f2ce453`, push-fe `38a04e7`이다. push-fe는 앱 두 저장소(fo-mobile, fo-web)를 중첩 서브모듈로 핀한다. 이미 받은 클론은 `git submodule update --init --recursive`로 중첩 서브모듈까지 받는다. 동작의 기준은 각 서브모듈 develop이다.
 
 ## 아키텍처
 
@@ -44,7 +44,7 @@ fo-mobile (Expo) ── WebView ──► fo-web (Vite)
 
 | 영역 | 선택 |
 | --- | --- |
-| 모바일 | Expo SDK 58, React Native 0.88, Expo Router(Native Tabs, Stack. 대화 목록은 탭 위 스택), React 19.3, TanStack Query 5, Zustand 5, `@expo/ui`, Noto Sans KR (`apps/fo-mobile/src/theme/fonts.ts`의 `NotoSansKR-Regular`·`Medium`·`SemiBold`·`Bold`·`ExtraBold`. 웹 토큰은 `packages/design-system/src/tokens.ts`의 `"Noto Sans KR", "Noto Sans"`) |
+| 모바일 | Expo SDK 58, React Native 0.88, Expo Router(Native Tabs, Stack. 봇 홈이 탭이고 봇 채팅·봇 프로필·자료는 탭 위 스택), React 19.3, TanStack Query 5, Zustand 5, `@expo/ui`, Noto Sans KR (`apps/fo-mobile/src/theme/fonts.ts`의 `NotoSansKR-Regular`·`Medium`·`SemiBold`·`Bold`·`ExtraBold`. 웹 토큰은 `packages/design-system/src/tokens.ts`의 `"Noto Sans KR", "Noto Sans"`) |
 | 웹 | Vite 6, React 19.1, React Router 7, TanStack Query 5. 개발 서버 포트 5174 |
 | 공통 클라이언트 | TypeScript, pnpm 11, Turborepo 2, ky(`@push/api-client`), es-hangul(`@push/shared`) |
 | 엣지 | Cloudflare Workers. gateway Worker `push-be`, core Worker `push-be-core`. npm 패키지명은 각각 `push-be-front`, `push-be-core`. Wrangler 4, TypeScript 7, `@neondatabase/serverless` |
@@ -55,7 +55,7 @@ fo-mobile (Expo) ── WebView ──► fo-web (Vite)
 ## 이 저장소에서 하는 일
 
 - `push-fe`, `push-be`를 서브모듈로 고정한다.
-- `docs/`에 제품 설계 문서를 둔다. `PRD.md`, `feature-map.md`, `feature-spec.md`, `tech-stack.md`는 버전 2.0(작성 2026-10-20, 개정 메모 2026-11-11) 초안이고, `api-spec.md`는 버전 2.2(작성 2026-11-11)이다. 문서에는 코드에 아직 없는 항목이 `미확정`으로 남아 있다. 동작의 기준은 각 서브모듈 코드다.
+- `docs/`에 제품 설계 문서를 둔다. `PRD.md`, `feature-map.md`, `feature-spec.md`, `tech-stack.md`는 버전 2.0(작성 2026-10-20, 개정 메모 2026-11-11) 초안이고, `api-spec.md`는 버전 2.3(작성 2026-11-13)이다. 모바일 문서는 개인 에이전트를 봇이라 부르고, 웹과 기업 쪽 문서는 에이전트를 그대로 쓴다. 문서에는 코드에 아직 없는 항목이 `미확정`으로 남아 있다. 동작의 기준은 각 서브모듈 코드다.
 - `Makefile`, `compose.yml`, `deploy/Caddyfile`을 둔다.
 
 ## 시작하기
@@ -77,7 +77,7 @@ git submodule update --init --recursive
 
 | 타깃 | 하는 일 |
 | --- | --- |
-| `make setup` | `git submodule update --init --recursive` 후 `make install` |
+| `make setup` | `git submodule update --init --recursive` 후 `make install`. 핀한 앱 커밋을 받으므로 각 앱 저장소의 develop보다 뒤일 수 있다. `make mobile`은 `expo start`만 실행하므로 개발 빌드가 깔려 있어야 한다 |
 | `make install` | push-fe `pnpm install --frozen-lockfile`, push-be `npm ci`, `services/ai`의 `uv sync --locked --extra local --extra test` |
 | `make db` | `push-be/infra/docker-compose.yml`의 Postgres(pgvector, 호스트 5434)를 띄운다 |
 | `make api` | `push-be/services/ai`에서 uvicorn `app.main:app`을 8080으로 띄운다. 기동할 때 마이그레이션을 적용한다 |
@@ -89,7 +89,9 @@ git submodule update --init --recursive
 | `make test-fe` | push-fe CI와 같다. `pnpm install --frozen-lockfile`, `turbo run typecheck lint test`, fo-web 빌드 |
 | `make test-workers` | push-be 루트에서 `npm ci`, `npm test`, `npm run typecheck` |
 | `make test-ai` | push-be CI의 `test-ai`와 같다. `uv sync --locked --no-dev --extra test` 후 `python -m pytest` |
-| `make legal-check` | `push-fe/packages/shared/src/legal/md`의 약관·처리방침 파일을 `docs/legal/`과 `diff` |
+| `make legal-check` | `push-fe/packages/shared/src/legal/md`(웹)와 `md/app`(앱)의 약관·처리방침·동의 파일 여덟 개를 `docs/legal/`과 `docs/legal/app/`에 `diff` |
+| `make contract-check` | push-fe api-client의 봇 계약 타입을 push-be가 생성한 `schema.ts`와 한 줄씩 맞춰 컴파일한다. 어긋나면 실패한다. `STRICT=1`이면 서버나 클라이언트에 타입이 아직 없는 줄도 실패한다. `ONLY="bot createBot"`로 줄을 고르고 `BE=`, `FE=`로 다른 체크아웃을 가리킨다 |
+| `make contract-check-selftest` | 위 검사를 픽스처 두 벌에 돌려 같은 타입은 통과하고 이름이 바뀐 필드, 서버가 모르는 필드, 서버가 보내지 않을 수 있는 필수 필드, 빠진 서버 타입은 실패하는지 본다 |
 
 `make api`는 `DATABASE_URL` 기본값으로 `make db`의 로컬 Postgres(`localhost:5434`)를 쓴다. 다른 DB를 쓰려면 `make api DATABASE_URL=...`처럼 넘긴다. 포트는 `API_PORT`로 바꾼다. 확인은 `curl localhost:8080/healthz`다. 게이트웨이는 Neon HTTP 드라이버를 쓰기 때문에 로컬 Postgres에는 붙지 않는다.
 
@@ -110,7 +112,7 @@ git submodule update --init --recursive
 
 `make test`가 두 서브모듈의 CI 검사를 로컬에서 돌린다. 자세한 내용은 `push-fe`와 `push-be`의 README를 따른다.
 
-`.github/workflows/policy.yml`은 `develop`으로 들어오는 PR을 검사한다. `policy` job은 브랜치가 `feat`, `fix`, `refactor`, `chore`, `docs`, `test` 중 하나 뒤에 케밥 케이스인지, 제목이 `docs(scope): 소문자로 시작` 형태이고 72자를 넘기지 않는지 본다. `legal` job은 `make legal-check`를 실행한다.
+`.github/workflows/policy.yml`은 `develop`으로 들어오는 PR을 검사한다. `policy` job은 브랜치가 `feat`, `fix`, `refactor`, `chore`, `docs`, `test` 중 하나 뒤에 케밥 케이스인지, 제목이 `docs(scope): 소문자로 시작` 형태이고 72자를 넘기지 않는지 본다. `legal` job은 `make legal-check`를, `contract-check` job은 `make contract-check-selftest`와 `make contract-check STRICT=1`을 실행한다.
 
 ## CI/배포
 
@@ -128,14 +130,14 @@ git submodule update --init --recursive
 push-workspace/
 ├─ deploy/Caddyfile      API_DOMAIN → api:8080
 ├─ docs/                 제품 설계 초안
-│  ├─ legal/             약관·처리방침 스냅숏(본문은 push-fe 원본)
+│  ├─ legal/             약관·처리방침 스냅숏(웹 `*.md`와 앱 `app/*.md`, 본문은 push-fe 원본)
 │  ├─ agent-upgrade-plan.md
 │  ├─ PRD.md
 │  ├─ feature-map.md
 │  ├─ feature-spec.md
 │  ├─ api-spec.md
 │  └─ tech-stack.md
-├─ .github/workflows/policy.yml   develop PR의 브랜치·제목 검사와 legal-check
+├─ .github/workflows/policy.yml   develop PR의 브랜치·제목 검사, legal-check, contract-check
 ├─ .gitmodules           push-fe, push-be (develop)
 ├─ Makefile
 ├─ compose.yml

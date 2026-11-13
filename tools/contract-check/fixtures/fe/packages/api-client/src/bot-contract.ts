@@ -19,3 +19,5 @@ export type TranscriptMatch = { messageId: string; at: string }
 export type CardRetry = { id: string; expiresAt: string }
 export type MaterialsPage = { counts: { doc: number; bookmark: number; link: number } }
 export type MaterialDetail = { kind: 'file' | 'link'; id: string; title: string }
+export type CardAnswer = { id: string; status: 'APPROVED' | 'REJECTED' }
+export type BotSiteGrant = { host: string; kind: 'posting' | 'company' | 'other'; grantedAt: string }

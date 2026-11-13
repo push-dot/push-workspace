@@ -23,7 +23,7 @@ const replace = (side, from, to) => (pair) => {
 const remove = (side) => (pair) => rmSync(join(pair, FILES[side]))
 
 const noCardRetry = replace('server', 'CardRetry: {', 'Renamed: {')
-const noServerTypes = (pair) => writeFileSync(join(pair, FILES.server), 'export interface components { schemas: {} }\n')
+const noServerTypes = (pair) => writeFileSync(join(pair, FILES.server), 'export interface paths {}\nexport interface operations {}\nexport interface components { schemas: {} }\n')
 
 function check(edits = [], vars = {}, env = {}) {
   const pair = mkdtempSync(join(tmpdir(), 'contract-check-pair-'))
@@ -52,6 +52,10 @@ const DRIFTS = [
   ['the server types the events of a turn without the event types the client reads', 'transcript', replace('server', 'events: components["schemas"]["StreamEvent"][];', 'events: { [key: string]: unknown }[];')],
   ['the client leaves out a body field the server requires', 'updateBot', replace('client', 'expectedRevision: number; ', '')],
   ['the client sends a required field the server does not know', 'updateBot', replace('client', 'expectedRevision: number;', 'expectedRevision: number; avatarKey: string;')],
+  ['the server may leave out a field the client requires', 'bot', replace('server', 'displayName: string;', 'displayName?: string;')],
+  ['the server renames a field of a site grant', 'botSiteGrants', replace('server', 'grantedAt: string;', 'at: string;')],
+  ['the server drops the site grant DELETE route', 'botSiteGrantDelete', replace('server', '{ delete: unknown }', '{ get: unknown }')],
+  ['the server answers a card with another status', 'cardAnswer', replace('server', 'status: "APPROVED" | "REJECTED";\n        };\n        BotSiteGrant', 'status: number;\n        };\n        BotSiteGrant')],
   ['the server renames an optional body field', 'createBot', replace('server', 'displayName?: string;', 'name?: string;')],
   ['the server renames an optional field inside a body', 'send', replace('server', 'model?: string;', 'modelId?: string;')],
   ['an item of a body array has a key the server does not know', 'send', replace('client', '{ kind: string; id: string }[]', '{ kind: string; id: string; title?: string }[]')],

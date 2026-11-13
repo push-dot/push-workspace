@@ -57,9 +57,13 @@ LEGAL_MD = push-fe/packages/shared/src/legal/md
 
 legal-check:
 	diff -u $(LEGAL_MD)/termsOfService.md docs/legal/terms-of-service.md
+	diff -u $(LEGAL_MD)/app/termsOfService.md docs/legal/app/terms-of-service.md
 	diff -u $(LEGAL_MD)/privacyPolicy.md docs/legal/privacy-policy.md
+	diff -u $(LEGAL_MD)/app/privacyPolicy.md docs/legal/app/privacy-policy.md
 	diff -u $(LEGAL_MD)/privacyConsent.md docs/legal/privacy-consent.md
+	diff -u $(LEGAL_MD)/app/privacyConsent.md docs/legal/app/privacy-consent.md
 	diff -u $(LEGAL_MD)/marketingConsent.md docs/legal/marketing-consent.md
+	diff -u $(LEGAL_MD)/app/marketingConsent.md docs/legal/app/marketing-consent.md
 
 # push-fe api-client의 봇 계약 타입을 push-be가 생성한 schema.ts와 한 줄씩 맞춰 컴파일한다. 어긋나면 실패한다.
 # 한쪽에 아직 타입이 없는 줄은 기다린다. ONLY로 고른 줄과 STRICT=1에서는 기다리지 않고 실패한다.
