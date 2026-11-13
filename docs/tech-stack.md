@@ -56,6 +56,7 @@ push-workspace           문서, 루트 Makefile, compose.yml, deploy/
 | 내비게이션 | Expo Router 58: `expo-router/native-tabs`(NativeTabs), Stack(`headerLargeTitle`, `Stack.SearchBar`, `Stack.Toolbar`) |
 | 네이티브 UI | `@expo/ui` 58: `swift-ui`(TextField, Picker, Button + `glassEffect`), `jetpack-compose`(TextField, FilterChip, Bottom Sheet) |
 | 글래스 | `expo-glass-effect` |
+| 마스코트 | `react-native-svg` (봇 마스코트 다섯 상태) |
 | WebView | `react-native-webview` 14 (fo-web 상세 전용) |
 | 저장 | `expo-secure-store` (토큰) |
 | 푸시 알림 | `expo-notifications` (APNs, FCM), 딥링크로 화면 이동 |
@@ -127,5 +128,5 @@ Vite, React 19, react-router, TanStack Query, `@push/design-system`을 쓴다. �
 - **`@expo/ui`**: 입력창과 칩을 SwiftUI와 Compose로 그려서 각 플랫폼 기본 모양을 얻는다.
 - **fo-web**: 기업과 구직자가 함께 쓰는 웹이다. 공고 상세와 프로필 상세는 앱 WebView에서도 같은 화면으로 쓴다. 외부 사이트는 WebView로 열지 않는다.
 - **v2 CRUD는 core-api(TS)**: 저장소가 이미 AI가 아닌 경로를 TS로 옮기는 중이다.
-- **Playwright는 서버에서만**: 휴대폰에서는 브라우저 자동화를 돌릴 수 없다. 사용자가 준 링크 하나만 읽고 그 사용자 데이터로만 쓴다.
+- **Playwright는 서버에서만**: 휴대폰에서는 브라우저 자동화를 돌릴 수 없다. 사용자가 준 링크와, 사용자가 허용한 페이지(봇별·사이트별 허용, 그 사이트 안에서만)만 읽고 그 사용자 데이터로만 쓴다.
 - **AI만 VPS로**: Workers Python 런타임 제약과 Browser Rendering 한도 등 때문에 AI 실행 경로만 VPS에 둔다. 읽기와 CRUD는 Workers에 그대로 둔다.
