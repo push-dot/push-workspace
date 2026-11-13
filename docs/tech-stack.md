@@ -2,7 +2,7 @@
 
 - 버전: 2.0
 - 작성일: 2026-10-20
-- 개정 메모: 2026-11-11. 기준 develop은 README와 같다(push-be `d73240d`, push-fe `193dbd5`).
+- 개정 메모: 2026-11-13. 기준 develop은 README의 핀과 같다(push-be `dd505bb`, push-fe `866b3f6`).
 - 상태: 기존 스택은 각 저장소의 설정 파일 기준이다. 모바일은 2026-10-18 npm 최신판 기준이다.
 - 관련 문서: [PRD.md](PRD.md), [api-spec.md](api-spec.md)
 
