@@ -440,7 +440,7 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | `PATCH /calendar/events/{id}` | `expectedRevision*`, `title`, `startsAt`, `endsAt`, `timeZone`, `notes` |
 | `DELETE /calendar/events/{id}` | 본문 `expectedRevision*` → 204 |
 
-공고 마감일은 서버가 캘린더에 넣는다. 공고를 북마크하거나 지원하면 `DEADLINE` 일정이 사용자와 공고마다 하나 생기고(`source=POSTING`), 마감일 23:59(Asia/Seoul)다. 북마크나 지원을 되풀이해도 일정은 늘지 않는다. 북마크를 해제하거나 북마크를 휴지통에서 지우면 일정도 지운다. 지원한 공고의 일정은 지우지 않는다. 휴지통에서 북마크를 되살리면 일정도 돌아온다. 마감일이 없는 공고는 일정이 없고, 마감일이 지난 공고는 지원했을 때만 일정이 생긴다. 이미 있던 북마크에는 일정을 소급해 넣지 않는다. 일정 경로(`POST`, `PATCH`, `DELETE`)는 그대로다. 결정: 기존 북마크와 지원의 마감 일정은 멱등하게 채운다(백필). push-be develop `f1aca5f`에는 아직 없다. 이 동작은 마이그레이션 `0063` 이후에 켜진다. 앞서 배포된 core-api는 그 컬럼이 없으면 일정 없이 북마크·지원·휴지통을 처리한다.
+공고 마감일은 서버가 캘린더에 넣는다. 공고를 북마크하거나 지원하면 `DEADLINE` 일정이 사용자와 공고마다 하나 생기고(`source=POSTING`), 마감일 23:59(Asia/Seoul)다. 북마크나 지원을 되풀이해도 일정은 늘지 않는다. 북마크를 해제하거나 북마크를 휴지통에서 지우면 일정도 지운다. 지원한 공고의 일정은 지우지 않는다. 휴지통에서 북마크를 되살리면 일정도 돌아온다. 마감일이 없는 공고는 일정이 없고, 마감일이 지난 공고는 지원했을 때만 일정이 생긴다. 일정 경로(`POST`, `PATCH`, `DELETE`)는 그대로다. 기존 북마크와 지원의 마감 일정은 마이그레이션 `0064`가 한 번 채운다. 사용자와 공고당 하나, 직접 만든 일정은 건드리지 않고 여러 번 실행해도 늘지 않는다(지원은 마감이 지났어도 만들고, 북마크는 마감이 오늘 이후일 때만 만든다). 이 동작은 마이그레이션 `0063` 이후에 켜진다. 앞서 배포된 core-api는 그 컬럼이 없으면 일정 없이 북마크·지원·휴지통을 처리한다.
 
 ### 3.13 integrations
 
@@ -773,13 +773,14 @@ Profile: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, c
 | `0060_bot_outcome.sql` | `bot_state_v`에 `outcome_kind`, `outcome_at` 두 컬럼을 더한다(인덱스 없음). 답 없이 만료된 카드와 실패한 채팅 작업을 목록 행이 따로 그리게 한다 |
 | `0061_post_saves.sql` | `post_saves(user_id, post_id)`와 목록 인덱스. 사용자와 글을 지우면 연쇄로 지운다. 되돌리기는 `DROP TABLE post_saves` |
 | `0062_open_postings_index.sql` | 열린 공고만 담는 부분 인덱스. `GET /postings`의 총계와 facets, `GET /search/trending`이 쓴다 |
-| `0063_calendar_posting_deadline.sql` | `calendar_events.posting_id`와 (사용자, 공고) 부분 유일 인덱스. 북마크·지원이 마감 일정을 넣는 근거다. 기존 북마크에는 일정이 없다 |
+| `0063_calendar_posting_deadline.sql` | `calendar_events.posting_id`와 (사용자, 공고) 부분 유일 인덱스. 북마크·지원이 마감 일정을 넣는 근거다 |
+| `0064_calendar_deadline_backfill.sql` | 기존 북마크·지원의 마감 일정을 멱등하게 채운다. 2026-11-17에 staging에만 적용했다 |
 
-적용 메모(2026-11-11): `0053`–`0063`은 develop에 머지됐을 뿐 어느 환경에도 적용했다고 적지 않는다. 적용은 `Migrate database` 워크플로를 소유자가 돌릴 때다. `0047`–`0052`는 staging에 적용됐고 prod에는 아직 없다는 운영 메모가 있다. 이 저장소와 GitHub PR 본문만으로는 Neon 적용 로그를 확인하지 못했다(#269 머지 시점 본문은 staging·prod 모두 미적용). 적용 완료를 배포 절차처럼 단정하지 않는다.
+적용 메모(2026-11-11): `0053`–`0064`은 develop에 머지됐을 뿐 어느 환경에도 적용했다고 적지 않는다. 적용은 `Migrate database` 워크플로를 소유자가 돌릴 때다. `0047`–`0052`는 staging에 적용됐고 prod에는 아직 없다는 운영 메모가 있다. 이 저장소와 GitHub PR 본문만으로는 Neon 적용 로그를 확인하지 못했다(#269 머지 시점 본문은 staging·prod 모두 미적용). 적용 완료를 배포 절차처럼 단정하지 않는다.
 
 ## 6. 남은 차이
 
-- 서버 확인 게이트(프로필 저장 확인 등)는 보내지 않기로 했다. push-be develop `f1aca5f`에는 아직 반영되지 않았다.
+- 서버는 프로필 저장 확인 같은 확인 게이트를 보내지 않는다. 프로필은 묻지 않고 저장하고, 앱이 바뀐 필드를 보여 주며 `되돌리기`(이전 값을 `PATCH /me/profile`로 보냄)를 둔다. 지원·제안 수락·지원자 단계 변경, 글·제안·팔로우 같은 밖으로 나가는 쓰기는 그대로 승인을 묻는다.
 - 개인 최근 검색 목록과 모두 지우기가 없다. 많이 찾는 검색어는 `GET /search/trending`이다.
 - "이번 주 많이 본 공고" 경로가 없다. `sort=popular`는 전체 기간 조회수다.
 - 서류 보관은 `POST /documents/{id}/restore`, 내 링크는 `POST /me/links/{id}/restore`로 되돌린다. 경력 근거(source) 삭제는 되돌리는 경로가 없고, 근거가 참조하면 409다.
