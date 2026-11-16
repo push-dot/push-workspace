@@ -1,7 +1,8 @@
 # Push API 명세
 
-- 버전: 2.3
-- 작성일: 2026-11-13
+- 버전: 2.4
+- 작성일: 2026-11-17
+- 개정 메모: 2026-11-17. 2026-11-11 이후 push-be 변경(프로필 PDF, 저장한 글과 정렬, Bot별 사용량, 공고 없는 서류, 마감 일정, 동의 게이트, 승인 카드 무기한, 소셜 계정 전화 로그인)을 push-be `299677a` 기준으로 반영했다
 - 기준: push-be `develop` `f2ce453`, push-fe `develop` `38a04e70`. 코드가 OpenAPI(`packages/contracts/openapi.json`)와 다르면 코드를 따른다.
 - 이전 버전: `docs/api.md` (커밋 `72fe539`에서 삭제)
 - 관련 문서: [PRD.md](PRD.md), [feature-spec.md](feature-spec.md)
@@ -15,7 +16,7 @@
 |---|---|---|
 | gateway | `services/gateway` | `/healthz`, `GET /auth/me`, 대화 목록·메시지 조회, `GET .../messages/stream/active`, 메시지 스트림의 SSE, `GET /ai/models`, `GET /integrations/job-sites`, 봇 채팅의 보내기·스트림·취소(`POST /bots/{id}/messages/stream`, `GET /bots/{id}/stream`, `POST /bots/{id}/stream/cancel`) |
 | core | `services/core-api` | `isCore`에 있는 경로. auth, 대화 쓰기, 서류, 출처, 이미지, 결제, 채용, 허브, 소셜, 회사, 캘린더, Google 연동, `/api/v1/bots` 및 `/api/v1/bots/`로 시작하는 경로와 `/api/v1/materials`(위 gateway 세 경로는 제외, `services/gateway/src/routes/owner.ts`) |
-| ai | `services/ai` | `isPython`에 있는 실행 경로만. 봇 기록(`GET /bots/{id}/transcript`), 생성, 이력서 실행, 공고 분석, 면접 준비, 문서 개정·내보내기, 근거 가져오기, 프로필 초안, 블루프린트, 검증, operation, approval, 대화 공유·산출물 목록 |
+| ai | `services/ai` | `isPython`에 있는 실행 경로만. 봇 기록(`GET /bots/{id}/transcript`), 생성, 이력서 실행, 공고 분석, 면접 준비, 문서 개정·내보내기, 근거 가져오기, 프로필 초안, 내 프로필 PDF(`GET /me/profile/pdf`), 블루프린트, 검증, operation, approval, 대화 공유·산출물 목록 |
 
 - `/internal`과 `/internal/*`는 gateway가 넘기지 않는다.
 - `//`, `%2F`, `%5C`가 들어 있는 경로는 넘기지 않는다.
@@ -32,6 +33,7 @@
 - `GET /documents/{id}/versions/{versionId}/export`
 - `POST /career-evidence/import`
 - `GET /sources/{id}/profile-draft`
+- `GET /me/profile/pdf`
 - `POST /projects/blueprints`
 - `POST /projects/{id}/evidence/{evidenceId}/verify`
 - `GET /operations/{id}`, `GET /operations/{id}/events`
@@ -86,7 +88,7 @@
   - 정렬 기본은 `createdAt DESC, id DESC`다. 대화 목록만 `updatedAt DESC, id DESC`다.
 - 비동기 작업은 202와 `Operation`을 돌려준다.
 - 오류: `{"error": {"code", "message", "requestId", "details"}}`
-  - `details`에는 복구에 필요한 값만 담는다. 예: `{field}`, `{currentRevision}`, `{accountType}`, `{existingProviders}`, `{retryAfterSec}`, `{requiredPlan}`, `{reason}`
+  - `details`에는 복구에 필요한 값만 담는다. 예: `{field}`, `{currentRevision}`, `{accountType}`, `{retryAfterSec}`, `{requiredPlan}`, `{reason}`
 
 | HTTP | code |
 |---|---|
@@ -95,7 +97,7 @@
 | 401 | `UNAUTHENTICATED`, `TOKEN_EXPIRED`, `INVALID_CREDENTIALS` |
 | 403 | `FEATURE_DISABLED`, `FORBIDDEN`, `EMAIL_NOT_VERIFIED`(로그인), `CONSENT_REQUIRED`, `BUSINESS_NOT_VERIFIED`, `PLAN_REQUIRED`, `SEAT_LIMIT`, `BOT_LIMIT`(회사 봇 생성 한도. `details`: `{limit, plan}`), `DEFAULT_BOT_PROTECTED`(Push Bot 삭제·보호) |
 | 404 | `NOT_FOUND` (ai는 405도 `NOT_FOUND`로 돌려준다) |
-| 409 | `ATTACHMENT_GONE`(`details`: `{kind, id}`), `APPROVAL_SUPERSEDED`, `REVISION_CONFLICT`, `INVALID_TRANSITION`, `APPROVAL_REQUIRED`, `APPROVAL_STALE`, `UNSUPPORTED_CLAIM`, `INTEGRATION_REQUIRED`, `IDEMPOTENCY_CONFLICT`, `CONFLICT`, `EMAIL_TAKEN`, `PHONE_TAKEN`, `PHONE_ALREADY_REGISTERED`, `ADMIN_TRANSFER_REQUIRED`, `ALREADY_SUBSCRIBED`, `COMPANY_EXISTS` |
+| 409 | `ATTACHMENT_GONE`(`details`: `{kind, id}`), `APPROVAL_SUPERSEDED`, `REVISION_CONFLICT`, `INVALID_TRANSITION`, `APPROVAL_REQUIRED`, `APPROVAL_STALE`, `UNSUPPORTED_CLAIM`, `INTEGRATION_REQUIRED`, `IDEMPOTENCY_CONFLICT`, `CONFLICT`, `EMAIL_TAKEN`, `PHONE_TAKEN`, `ADMIN_TRANSFER_REQUIRED`, `ALREADY_SUBSCRIBED`, `COMPANY_EXISTS` |
 | 413 | `PAYLOAD_TOO_LARGE` |
 | 422 | `VERIFICATION_FAILED`, `DOCUMENT_NOT_FINALIZED`, `BUSINESS_NOT_VERIFIED`, `VALIDATION_ERROR`(설정 enum) |
 | 429 | `RATE_LIMITED`(`details.retryAfterSec`. 봇 생성 락 대기 종료·분당 한도 등. 휴대폰 재발송 168초·이메일 60초와 값이 다를 수 있음), `QUEUE_BUSY` |
@@ -179,7 +181,7 @@
 | `POST /auth/email/password-reset` | `email*` | 202. 이메일 존재 여부를 드러내지 않는다 |
 | `POST /auth/email/password-reset/confirm` | `token*`, `password*` | 204. 그 사용자의 refresh token을 모두 폐기한다 |
 | `POST /auth/phone/send` | `phone*` E.164 `+[1-9]\d{7,14}` | 202 `{cooldownSeconds, expiresAt}`. 대기가 남으면 429 `RATE_LIMITED` `retryAfterSec`. SMS 설정이 없으면 503 `NOT_CONFIGURED`. `PHONE_SMS_MODE=log`는 development에서만 쓴다. 발송 업체는 미결이다 |
-| `POST /auth/phone/verify` | `phone*`, `code*` 6자리, `pendingToken`(소셜 연결일 때) | 200 Session과 `created`. 연결이면 `linked:true`와 `provider`. 코드가 틀리면 400 `PHONE_CODE_INVALID`. 만료는 해시보다 먼저 보고 400 `PHONE_CODE_EXPIRED`. 5회를 넘으면 429 `RATE_LIMITED`. 다른 계정에 연결된 번호는 409 `PHONE_TAKEN` "this login is already linked to another account". 이미 가입된 번호는 409 `PHONE_ALREADY_REGISTERED`(`details.existingProviders`). 소셜로 들어온 새 사용자가 같은 번호를 확인하면 그 계정에 provider가 연결된다 |
+| `POST /auth/phone/verify` | `phone*`, `code*` 6자리, `pendingToken`(소셜 연결일 때) | 200 Session과 `created`. 연결이면 `linked:true`와 `provider`. 코드가 틀리면 400 `PHONE_CODE_INVALID`. 만료는 해시보다 먼저 보고 400 `PHONE_CODE_EXPIRED`. 5회를 넘으면 429 `RATE_LIMITED`. 다른 계정에 연결된 번호는 409 `PHONE_TAKEN` "this login is already linked to another account". 이미 소셜 계정이 있는 번호는 그 계정으로 로그인하고(`created:false`) 아무것도 연결하지 않는다. 전화번호만으로 가입한 계정이면 대기 중인 소셜이 그 계정에 연결된다(`linked:true`) |
 | `POST /auth/refresh` | `refreshToken*` | Session. refresh token을 새로 바꾼다. 폐기된 토큰을 다시 쓰면 그 사용자의 토큰을 전부 폐기한다 |
 | `POST /auth/logout` | `refreshToken*` | 204 |
 | `POST /auth/email/verify/resend` | `{email}` | 항상 204. 메일 버킷은 주소당 분당 3통이고 가입·비밀번호 재설정과 공유한다. 넘치면 429 `RATE_LIMITED`, `retryAfterSec` 60. 주소가 없어도 204(#267) |
@@ -193,7 +195,7 @@
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
 | `GET /conversations` | page, `applicationId`, `q`, `audience`(`PERSONAL\|EMPLOYER`, 기본 PERSONAL), `archived`(`true`만 보관 목록) | page. 기본 목록은 `archived=false`. 기업 audience에 회사가 없으면 403 `BUSINESS_NOT_VERIFIED`. 항목 `{id, revision, applicationId, title, pinned, createdAt, updatedAt, status, lastMessagePreview, createdBy:{displayName}, postingId}`. status는 `NEEDS_APPROVAL\|RUNNING\|DONE`. 봇 대화는 이 목록에 나오지 않고, 이 항목에 `botId`도 없다. `/conversations/{id}` 아래 모든 경로는 봇 대화 id에 404를 돌려준다 |
-| `POST /conversations` 🔑 | `title*`(≤300), `applicationId`, `audience`(`PERSONAL\|EMPLOYER`), `postingId` | 201 Conversation. 개인은 참고 데이터 동의가 없으면 403 `CONSENT_REQUIRED` "reference data consent is required". 기업은 사업자 확인 전이면 403 `BUSINESS_NOT_VERIFIED` |
+| `POST /conversations` 🔑 | `title*`(≤300), `applicationId`, `audience`(`PERSONAL\|EMPLOYER`), `postingId` | 201 Conversation. 개인은 참고 데이터 동의가 없거나 `allowAiReadMyFiles`가 꺼져 있으면 403 `CONSENT_REQUIRED` "reference data consent is required". 기업은 사업자 확인 전이면 403 `BUSINESS_NOT_VERIFIED` |
 | `PATCH /conversations/{id}` | `expectedRevision*`, `title`, `pinned` | Conversation |
 | `DELETE /conversations/{id}` | – | 204 |
 | `POST /conversations/{id}/archive` 🔑 | `expectedRevision*` | Conversation. 이 대화에서만 쓰던 근거도 함께 보관한다. 보관을 해제해도 그 자료와 첨부는 돌아오지 않는다 |
@@ -219,7 +221,7 @@
 - `intent`: `posting|review|interview|general|match_posting|fit|gaps|experience|boost|find_postings|deadline_postings|applications|calendar|hub_profile|offer_reply|coffee_chat|career_post`. 개인 전용 intent를 기업 대화에 쓰면 400. `interview`는 기업 요금제 잠금(`assertPlanAllows`)
 - `applicationId`
 
-개인 대화(`company_id`가 null)의 생성과 메시지는 `requireAgentConsent`를 탄다. 동의 행이 없거나 `reference_data`가 false면 403 `CONSENT_REQUIRED`다.
+개인 대화(`company_id`가 null)의 생성과 메시지는 `requireAgentConsent`를 탄다. 동의 행이 없거나 `reference_data`가 false이거나 설정의 `allowAiReadMyFiles`가 꺼져 있으면 403 `CONSENT_REQUIRED`다(동의 게이트). 봇 만들기, 봇 보내기, 봇 카드 답도 같은 검사를 받는다. 동의나 읽기 스위치를 끈 뒤에 이미 큐에 들어간 작업은 ai가 실행 전에 같은 검사로 `CONSENT_REQUIRED`로 끝낸다. "내 자료 읽기 꺼짐" 안내 줄과 도구별 접근 검사는 없다.
 
 채팅 첨부. 개인 앱은 `POST /conversations/{id}/attachments`를 쓰지 않는다.
 
@@ -290,7 +292,7 @@
 
 결과 제시. 프로필 기본 제목은 "Push 프로필에 저장했어요. 결과를 확인할까요?"이고 안내 "PDF는 Push 프로필에서 내보낼 수 있어요."를 붙인다. 외부 파일이 저장되면 "내 서류에 저장했어요. 결과를 확인할까요?". 저장에 실패하면 "내 서류에 저장하지 못했어요. 결과를 확인할까요?".
 
-**페이지 읽기 카드** (봇 채팅의 `approval`, 도구 카드). 봇이 스스로 고른 페이지를 열기 전에 묻는다. 선택지 id는 `approve`(한 번 허용), `approve_always`(그 봇과 그 사이트 항상 허용), `reject`(거절)다. 카드는 10분 안에 답이 없으면 만료돼 `expiresAt`이 지나고, 앱은 닫기와 다시 요청(`POST /bots/{id}/approvals/{cardId}/retry`)을 보인다. 선택지·수명·꼬리말은 `harness/approval.py` 표 한 곳이 정한다. 선택 카드와 수정 카드에는 `expiresAt`이 없다. 이용자가 이 봇에게 준 주소(같은 대화의 메시지에 든 링크, 이 대화에 붙인 링크 자료, 내 자료 읽기 허용이 켜진 때의 저장한 링크)는 카드 없이 읽고, 어떤 실행 방식에서도 마찬가지다. 허용은 한 사이트(host)에만 미친다. 다른 사이트로 넘어가는 리디렉션은 멈추고, 그 사이트를 읽으려면 새로 묻는다. 항상 허용은 `bot_site_grants(bot_id, host)`에 저장되고 봇을 지우면 함께 지워진다. 이 카드는 3.4의 `approvals` 승인 종류 넷과 별개다.
+**페이지 읽기 카드** (봇 채팅의 `approval`, 도구 카드). 봇이 스스로 고른 페이지를 열기 전에 묻는다. 선택지 id는 `approve`(한 번 허용), `approve_always`(그 봇과 그 사이트 항상 허용), `reject`(거절)다. 카드는 답할 때까지 기다린다. 새 카드에는 `expiresAt`이 없고(null) 만료되지 않는다. 지금 서버가 묻는 카드는 모두 그렇고, 이 변경 전에 만든 카드만 시간을 가진다. 그런 오래된 카드가 만료되면 앱은 닫기와 다시 요청(`POST /bots/{id}/approvals/{cardId}/retry`)을 보인다. 선택지와 꼬리말은 `harness/approval.py` 표 한 곳이 정한다. 선택 카드와 수정 카드에는 `expiresAt`이 없다. 이용자가 이 봇에게 준 주소(같은 대화의 메시지에 든 링크, 이 대화에 붙인 링크 자료, 내 자료 읽기 허용이 켜진 때의 저장한 링크)는 카드 없이 읽고, 어떤 실행 방식에서도 마찬가지다. 허용은 한 사이트(host)에만 미친다. 다른 사이트로 넘어가는 리디렉션은 멈추고, 그 사이트를 읽으려면 새로 묻는다. 항상 허용은 `bot_site_grants(bot_id, host)`에 저장되고 봇을 지우면 함께 지워진다. 이 카드는 3.4의 `approvals` 승인 종류 넷과 별개다.
 
 `review` 선택지는 `CLASSIC|MODERN|COMPACT|ATS`다. `AUTO`는 카드에서 멈춘다. `BYPASS`는 `mode_select`, `validate_cap`, 첨부가 없는 `intake`를 빼고 자동으로 답한다.
 
@@ -306,7 +308,7 @@
 | `POST /approvals/{id}/decision` 🔑 | `expectedRevision*`, `decision*`(`APPROVED\|DENIED`) | Approval |
 
 - kind: `EVIDENCE_USE | DOCUMENT_FINALIZE | APPLICATION_SUBMIT | CLI_EXECUTE`
-- status: `PENDING | APPROVED | DENIED | EXPIRED | CONSUMED`. 기본 유효 기간은 24시간이다.
+- status: `PENDING | APPROVED | DENIED | EXPIRED | CONSUMED`. 기본 유효 기간은 24시간이다. 채팅의 도구 확인 카드(3.3)에는 이 기한이 없다.
 - 채팅 확인 카드의 답은 이 경로가 아니라 3.3의 conversation approval이다.
 
 ### 3.5 operations (ai)
@@ -362,7 +364,7 @@ stage: `DISCOVERED, PREPARING, READY, APPLIED, SCREENING, INTERVIEW, OFFER, ACCE
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
 | `GET /documents` | page, `applicationId`, `kind`, `archived=1`(최근 30일 안 보관 서류. `archivedAt`, `purgeAt`=보관 시각+30일. 이 목록에만 있음) | page |
-| `POST /documents` 🔑 | `applicationId*`, `title*`(1–300), `kind*`(`RESUME\|PORTFOLIO\|COVER_LETTER\|CAREER_STATEMENT\|HUB_PROFILE`), `language*`, `template` | 201. 저장 template은 alias를 적용한 값 |
+| `POST /documents` 🔑 | `applicationId`(생략하거나 null이면 공고에 속하지 않는 서류. 허브 프로필과 포트폴리오 사본이 그렇다. 값이 있으면 내 지원이어야 하고 아니면 404), `title*`(1–300), `kind*`(`RESUME\|PORTFOLIO\|COVER_LETTER\|CAREER_STATEMENT\|HUB_PROFILE`), `language*`, `template` | 201. 저장 template은 alias를 적용한 값 |
 | `GET` · `PATCH /documents/{id}` | PATCH: `expectedRevision*`, `title`, `template`, `language` | Document |
 | `GET /documents/{id}/versions[/{versionId}]` | page | Version |
 | `POST /documents/{id}/versions` 🔑 | `expectedRevision*`, `content*`, `blocks[{id, text, evidenceRefs[{evidenceId, start, end}]}]`, `changeNote` | 201 `{document, version}` |
@@ -438,6 +440,8 @@ run state: `DRAFT, APPROVAL_REQUIRED, RUNNING, VERIFYING, VERIFIED, FAILED`
 | `PATCH /calendar/events/{id}` | `expectedRevision*`, `title`, `startsAt`, `endsAt`, `timeZone`, `notes` |
 | `DELETE /calendar/events/{id}` | 본문 `expectedRevision*` → 204 |
 
+공고 마감일은 서버가 캘린더에 넣는다. 공고를 북마크하거나 지원하면 `DEADLINE` 일정이 사용자와 공고마다 하나 생기고(`source=POSTING`), 마감일 23:59(Asia/Seoul)다. 북마크나 지원을 되풀이해도 일정은 늘지 않는다. 북마크를 해제하거나 북마크를 휴지통에서 지우면 일정도 지운다. 지원한 공고의 일정은 지우지 않는다. 휴지통에서 북마크를 되살리면 일정도 돌아온다. 마감일이 없는 공고는 일정이 없고, 마감일이 지난 공고는 지원했을 때만 일정이 생긴다. 이미 있던 북마크에는 일정을 소급해 넣지 않는다. 일정 경로(`POST`, `PATCH`, `DELETE`)는 그대로다. 이 동작은 마이그레이션 `0063` 이후에 켜진다. 앞서 배포된 core-api는 그 컬럼이 없으면 일정 없이 북마크·지원·휴지통을 처리한다.
+
 ### 3.13 integrations
 
 Google은 core, `GET /integrations/job-sites`는 gateway다.
@@ -501,7 +505,9 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 | `POST /billing/webhook/app-store` | 공개. raw JWS 또는 `{signedPayload}` | 200 |
 | `POST /billing/webhook/google-play` | 공개. JSON과 `Authorization: Bearer` OIDC RS256. iss `https://accounts.google.com`, aud `GOOGLE_OIDC_AUDIENCE` | 200 |
 
-`GET /billing` 필드: `subscriptionStatus`, `plan`, `periodEndsAt`, `balanceMicroCredits`, `reservedMicroCredits`, `monthlyMicroCredits`, `spentMicroCredits`, `audience`, `source`, `creditsRefillAt`(선택. 다음 UTC 월의 첫 순간). `usagePercent`는 없다. 잔액은 최신 원장 `balance_after`에서 정산된 `ai_usage`와 열린 `credit_reservations`를 뺀 값이다. `reservedMicroCredits`는 `RESERVED` 합이다. `spentMicroCredits`는 이번 UTC 월에 정산된 사용량이다. 기업 `periodEndsAt`은 항상 null이다. 개인 `periodEndsAt`은 구독 종료다. 개인 `source`는 활성 인앱이면 `APP_STORE|GOOGLE_PLAY`, 아니면 구독이 `ACTIVE`일 때 `STRIPE`, 아니면 null이다. 기업 `source`는 plan이 있으면 `STRIPE`, 없으면 null이다. 화면 퍼센트는 `spentMicroCredits / monthlyMicroCredits`로 계산한다.
+`GET /billing` 필드: `subscriptionStatus`, `plan`, `periodEndsAt`, `balanceMicroCredits`, `reservedMicroCredits`, `monthlyMicroCredits`, `spentMicroCredits`, `audience`, `source`, `creditsRefillAt`(선택. 다음 UTC 월의 첫 순간), `usageByBot`(개인만. 아래). `usagePercent`는 없다. 잔액은 최신 원장 `balance_after`에서 정산된 `ai_usage`와 열린 `credit_reservations`를 뺀 값이다. `reservedMicroCredits`는 `RESERVED` 합이다. `spentMicroCredits`는 이번 UTC 월에 정산된 사용량이다. 기업 `periodEndsAt`은 항상 null이다. 개인 `periodEndsAt`은 구독 종료다. 개인 `source`는 활성 인앱이면 `APP_STORE|GOOGLE_PLAY`, 아니면 구독이 `ACTIVE`일 때 `STRIPE`, 아니면 null이다. 기업 `source`는 plan이 있으면 `STRIPE`, 없으면 null이다. 화면 퍼센트는 `spentMicroCredits / monthlyMicroCredits`로 계산한다.
+
+`usageByBot`은 개인 응답에만 있는 배열 `[{id, name, usedMicroCredits}]`이다. 이번 UTC 월에 정산된 사용량을 그 사용량이 돈 작업의 대화가 속한 Bot별로 합하고, 많이 쓴 Bot부터 준다. Bot 대화 밖의 사용량(적합도, 서류)과 지운 Bot, 0인 Bot은 넣지 않는다. 기업 응답에는 없다.
 
 스토어 webhook은 해지 때 원장 행을 넣지 않는다. `REFUND|EXPIRED|REVOKE|GRACE_PERIOD_EXPIRED`는 `iap_subscriptions.status=CANCELED`, 사용자 plan `FREE`, `subscription_status=CANCELED`다. `PURCHASE|RENEWAL|SUBSCRIBED|DID_RENEW`는 그 거래 id가 이미 claim된 뒤에만 크레딧 또는 plan과 `PURCHASE`를 넣는다. 모르는 type은 200이고 쓰지 않는다. `iap_subscriptions` 행이 없는 첫 구매는 무시한다.
 
@@ -539,11 +545,11 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 | `GET /bots/{id}/stream` | `after`(seq) 또는 `Last-Event-ID` | 진행 중 작업을 `after`부터 다시 이어 준다. 돌고 있는 작업이 없으면 204 |
 | `POST /bots/{id}/stream/cancel` 🔑 | – | 200 `{status:"CANCELLED", resumable}`. 돌고 있는 작업이 없으면 409 `CONFLICT` |
 | `POST /bots/{id}/approvals/{cardId}` 🔑 | `optionId` 또는 `optionIds` | 200 `{id, status, optionId}`. 실행이 이어지면 202이고 앱은 `GET /bots/{id}/stream`을 따라간다. 403 `CONSENT_REQUIRED`, 402 `INSUFFICIENT_CREDITS`, 409 `APPROVAL_ALREADY_RESOLVED`, 410 `APPROVAL_EXPIRED`(`reject`는 만료 뒤에도 200으로 카드를 닫는다) |
-| `POST /bots/{id}/approvals/{cardId}/retry` 🔑 | – | 200 `{id, status:"PENDING", openedAt, expiresAt}`. 새 메시지가 그 뒤에 왔으면 409 `APPROVAL_SUPERSEDED` |
+| `POST /bots/{id}/approvals/{cardId}/retry` 🔑 | – | 200 `{id, status:"PENDING", openedAt, expiresAt}`. 수명이 있는 오래된 도구 카드만 받는다(없으면 404). 새 메시지가 그 뒤에 왔으면 409 `APPROVAL_SUPERSEDED` |
 | `GET /bots/{id}/transcript` | `cursor`, `limit`(30, 최대 100) | ai. 200 `{data: Turn[], page, live}`. 최신 차례가 먼저이고 `live`는 첫 페이지에만 있다(`{turnId, lastSeq}`) |
 | `GET /bots/{id}/transcript/matches` | `q*`(≤200) | 200 `{data:{total, items:[{messageId, turnId, at}]}}`. 최신순, 최대 200건 |
 
-한 차례(`Turn`)는 `{id, status, createdAt, user, answer, events, assistant}`이다. `events`에는 `done`이 없고, 붙어 있는 `token`은 하나로 합쳐지며, 종료 이벤트는 첫 번째만 남는다. 진행 중인 차례는 단계(`phase`)가 있는 `status`를 모두 남기고, 끝난 차례는 기다림(`waiting`)만 남긴다. 카드 이벤트에는 `resolution`, `openedAt`, `expiresAt`, `retryable`이 붙는다. `assistant.sources`는 답에 쓴 출처다.
+한 차례(`Turn`)는 `{id, status, createdAt, user, answer, events, assistant}`이다. `events`에는 `done`이 없고, 붙어 있는 `token`은 하나로 합쳐지며, 종료 이벤트는 첫 번째만 남는다. 진행 중인 차례는 단계(`phase`)가 있는 `status`를 모두 남기고, 끝난 차례는 기다림(`waiting`)만 남긴다. 카드 이벤트에는 `resolution`, `openedAt`, `expiresAt`(답을 기다리는 카드는 null), `retryable`이 붙는다. `assistant.sources`는 답에 쓴 출처다.
 
 **자료 (core)**
 
@@ -682,11 +688,16 @@ Push Bot 표시 이름은 `Push Bot`이다. 회사 봇 한도(Push Bot은 제외
 | `GET /me/profile` · `PATCH /me/profile` | 아래 | Profile |
 | `GET /me/bookmarks` | page | page Posting |
 | `GET /me/follows` · `GET /me/followers` | page | page Profile |
-| `GET /me/posts` | page | 내가 쓴 글 |
-| `GET /me/commented-posts` | page | 댓글 단 글 |
+| `GET /me/posts` | page, `sort`(`latest\|views\|comments`, 기본 `latest`) | 내가 쓴 글 |
+| `GET /me/commented-posts` | page, `sort` | 댓글 단 글 |
+| `GET /me/saved-posts` | page, `sort` | 저장한 글. 저장 시각이 최신인 것부터. 글쓴이가 탈퇴 중인 글은 뺀다 |
+| `POST` · `DELETE /posts/{id}/save` 🔑 | – | 204. 둘 다 멱등이다. 없는 글을 저장하면 404 |
+| `GET /me/profile/pdf` | `photo`(`1`이면 아바타를 첫 쪽에 넣는다. 다른 값은 넣지 않는다) | ai. `application/pdf` 파일. 이름, 한 줄 소개, 소개, 경력, 기술 스택을 AI 호출 없이 그린다. 내용이 없는 섹션은 뺀다. 파일 이름은 `{이름} 프로필.pdf` |
 | `GET /me/consents` | – | `{referenceData, updatedAt, terms}` |
 | `PUT /me/consents` 🔑 | `referenceData*` bool | 200. false면 그 사용자의 `reference_samples`를 지운다 |
 | `PUT /me/consents/terms` 🔑 | `age14`, `serviceTerms`, `privacy`, `marketing`, `termsVersion` | 200. 셋 중 하나라도 보내면 `age14`, `serviceTerms`, `privacy`가 모두 true여야 한다. 켠 뒤에는 끄지 못한다(400). `marketing`은 선택 bool. `termsVersion`은 1–64자, 없으면 `1.0`. 다른 버전이면 이전 행을 `user_consent_history`에 복사한 뒤 덮어씀(#267, `0049`). 같은 버전은 멱등. 가입 요청에는 저장하지 않는다 |
+
+`sort`는 `me/posts`, `me/commented-posts`, `me/saved-posts`가 같이 쓴다. `latest`는 최신순(저장한 글은 저장 시각순)이다. `views`는 조회수순, `comments`는 댓글 수순이고 같으면 최신순이다. 이 둘은 cursor를 읽지 않고 처음 `limit`개만 주며 `hasMore`는 false, `nextCursor`는 null이다. 다른 값은 422 `VALIDATION_ERROR`(`details.field=sort`)다.
 
 Settings 응답: `notifyDeadline`, `notifyOffer`, `notifyComment`, `notifyAiDone`, `notifyApplicationStage`(null이면 true), `locale`(`ko|en`), `profilePublic`, `careerStatusVisibility`(`everyone|followers|private`), `hideFromCurrentCompany`, `contactVisibility`(`accepted|followers|everyone|private`), `defaultTone`(`as_is|professional|confident|concise|technical|friendly`), `allowAiReadMyFiles`, `aiAccessMode`(`ALWAYS_ASK|AUTO|BYPASS`, null·빈 값은 `AUTO`). 잘못된 enum은 422 `VALIDATION_ERROR`, 잘못된 bool은 400 "must be a boolean"이다. `chatRetentionDays`, `defaultEffort`, `confirmBeforeEdit`는 응답에 없고 PATCH는 모르는 키를 무시한다.
 
@@ -760,8 +771,11 @@ Profile: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, c
 | `0058_bot_site_grants.sql` | `bot_site_grants(bot_id, host)`. 봇을 지우면 연쇄로 지운다 |
 | `0059_approval_asks_again.sql` | 수명이 있는 도구 카드만 다시 요청할 수 있다는 규칙(`approval_expires`)을 한 곳에 둔다 |
 | `0060_bot_outcome.sql` | `bot_state_v`에 `outcome_kind`, `outcome_at` 두 컬럼을 더한다(인덱스 없음). 답 없이 만료된 카드와 실패한 채팅 작업을 목록 행이 따로 그리게 한다 |
+| `0061_post_saves.sql` | `post_saves(user_id, post_id)`와 목록 인덱스. 사용자와 글을 지우면 연쇄로 지운다. 되돌리기는 `DROP TABLE post_saves` |
+| `0062_open_postings_index.sql` | 열린 공고만 담는 부분 인덱스. `GET /postings`의 총계와 facets, `GET /search/trending`이 쓴다 |
+| `0063_calendar_posting_deadline.sql` | `calendar_events.posting_id`와 (사용자, 공고) 부분 유일 인덱스. 북마크·지원이 마감 일정을 넣는 근거다. 기존 북마크에는 일정이 없다 |
 
-적용 메모(2026-11-11): `0053`–`0060`은 develop에 머지됐을 뿐 어느 환경에도 적용했다고 적지 않는다. 적용은 `Migrate database` 워크플로를 소유자가 돌릴 때다. `0047`–`0052`는 staging에 적용됐고 prod에는 아직 없다는 운영 메모가 있다. 이 저장소와 GitHub PR 본문만으로는 Neon 적용 로그를 확인하지 못했다(#269 머지 시점 본문은 staging·prod 모두 미적용). 적용 완료를 배포 절차처럼 단정하지 않는다.
+적용 메모(2026-11-11): `0053`–`0063`은 develop에 머지됐을 뿐 어느 환경에도 적용했다고 적지 않는다. 적용은 `Migrate database` 워크플로를 소유자가 돌릴 때다. `0047`–`0052`는 staging에 적용됐고 prod에는 아직 없다는 운영 메모가 있다. 이 저장소와 GitHub PR 본문만으로는 Neon 적용 로그를 확인하지 못했다(#269 머지 시점 본문은 staging·prod 모두 미적용). 적용 완료를 배포 절차처럼 단정하지 않는다.
 
 ## 6. 남은 차이
 
