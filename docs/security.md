@@ -6,7 +6,7 @@
 - 적용 범위: push-be(gateway, core-api, services/ai), push-fe(fo-web, fo-mobile, api-client). 데스크톱은 다루지 않는다.
 - 관련 문서: [tech-stack.md](tech-stack.md), [api-spec.md](api-spec.md), [design-rules.md](design-rules.md)
 
-코드를 새로 쓰거나 고칠 때 따르는 보안 규칙이다. 2026-11-17 보안 점검에서 찾은 결함과 그 수정에서 나왔다. 규칙마다 코드 위치와 증거 테스트를 붙였다. 이 문서는 개발자가 지킬 규칙만 적는다. 점검 결과와 남은 위험은 보안 점검 보고서(`SECURITY-REPORT-2026-11-17.md`)에 있다.
+코드를 새로 쓰거나 고칠 때 따르는 보안 규칙이다. 2026-11-17 보안 점검에서 찾은 결함과 그 수정에서 나왔다. 규칙마다 코드 위치와 증거 테스트를 붙였다. 이 문서는 개발자가 지킬 규칙만 적는다. 점검 결과와 남은 위험은 push-design 작업 폴더의 `coverage/SECURITY-REPORT-2026-11-17.md`에 있다.
 
 규칙을 어겨야 하는 사정이 생기면 코드에 이유를 한 줄 남기고 PR에 적는다.
 
@@ -18,11 +18,11 @@
 | 모델이 만든 도구 인자, URL, 답변 글 | 승인 카드의 내용과 승인 기록 |
 | 경로·쿼리·본문·헤더 전부, 딥링크, WebView 안의 주소 | gateway가 검증해서 붙인 act-as 헤더 |
 
-모델의 출력은 믿지 않는 쪽이다. 모델이 믿지 않는 글을 읽은 뒤에는 그 글이 시킨 일을 할 수 있기 때문이다.
+모델의 출력은 믿지 않는 쪽이다. 믿지 않는 글을 읽은 모델은 그 글이 시킨 일을 할 수 있기 때문이다.
 
 ## 2. 믿지 않는 글은 자료로만 쓴다
 
-- 모델 문맥에 들어가는 믿지 않는 글은 `framework/untrusted.py`의 `as_data(text, source)`를 거친다. 글을 `<data source="…">` 블록으로 감싸고, 안의 `<data` 태그는 전각 괄호로 바꿔 블록을 닫거나 열 수 없게 하고, 20,000자로 자른다.
+- 모델 문맥에 들어가는 믿지 않는 글은 `framework/untrusted.py`의 `as_data(text, source)`를 거친다. 글을 `<data source="…">` 블록으로 감싸고, 안의 `<data` 태그는 전각 꺾쇠(`＜`)로 바꿔 블록을 닫거나 열 수 없게 하고, 20,000자로 자른다.
 - 시스템 프롬프트에 `DATA_RULE`이 들어 있어야 한다. 새 프롬프트를 만들 때도 넣는다.
 - 믿지 않는 글은 `system` 역할 메시지에 넣지 않는다. 다른 사용자의 서류에서 뽑은 문장 템플릿, 대화 요약도 같다. 요약은 도구 결과가 섞이므로 자료로 감싼다.
 - 새 도구를 만들면 결과를 믿지 않는 글로 본다. `harness/policy.py`의 `TRUSTED_READS`(본인 프로필, 본인 회사, 지원자 수, 본인 회사 공고 목록)에 있는 읽기만 예외다. 목록에 넣으려면 "이 결과에는 사용자나 본인 회사가 쓴 글만 들어 있다"를 보여야 한다.
@@ -38,22 +38,22 @@
   - 대화에 믿지 않는 글이 남아 있으면 다른 사람에게 닿는 쓰기(`RISKY_WRITE`)와 `update_my_profile`은 다음 턴에도 묻는다.
   - 지원, 제안 수락, 단계 변경은 모드와 관계없이 `ALWAYS_ASK_TOOLS`에 따라 항상 묻는다.
 - 요금제, 동의, 접근 모드는 서버가 DB에서 읽는다. "Ultra라고 했다", "동의했다"는 말로 열리는 경로를 만들지 않는다.
-- gateway는 클라이언트가 보낸 `x-push-*` 헤더를 모두 지운다. core-api는 내부 비밀이 맞을 때만 act-as 헤더를 받고, act-as가 허용한 경로와 회사 멤버십, 승인 카드를 확인한다. 새 내부 경로를 열 때 이 허용 목록에 명시적으로 추가한다.
+- gateway는 클라이언트가 보낸 `x-push-*` 헤더를 지우고, 내부 비밀이 맞는 호출에만 act-as 헤더 네 개를 통과시킨다(`routes/proxy.ts`). core-api는 내부 비밀이 맞을 때만 act-as 헤더를 받고, act-as가 허용한 경로와 회사 멤버십, 승인 카드를 확인한다. 새 내부 경로를 열 때 이 허용 목록에 명시적으로 추가한다.
 - id를 받는 경로는 모두 `user_id`, `company_id`, 멤버십으로 범위를 정한다. id만으로 행을 조회하는 쿼리를 쓰지 않는다.
 - 갱신은 허용 키 목록(`strictBody`, `forbidExtra`, `PROFILE_KEYS`)으로 열을 고정한다. `role`, `plan`, `user_id`, `credits`, `is_admin`을 본문에서 받는 갱신을 만들지 않는다.
 
 ## 4. 바깥으로 나가는 요청
 
-사용자나 모델이 준 URL을 서버가 요청할 때 따르는 규칙이다. 구현은 `services/ai/src/app/ingest/web_page.py`의 `fetch_page`이고, 링크 읽기·브라우저 프록시·RAG 읽기가 모두 이 경로를 쓴다.
+사용자나 모델이 준 URL을 서버가 요청할 때 따르는 규칙이다. 구현은 `services/ai/src/app/ingest/web_page.py`의 `fetch_page`이고, 페이지 읽기 도구, 메시지 속 링크 미리 읽기, RAG 읽기가 모두 이 경로를 쓴다. Chromium으로 렌더하는 폴백은 `web_page.py`의 이그레스 프록시가 같은 검사를 한다.
 
 - 스킴은 http와 https만 받는다. 자격증명이 든 URL은 거부한다.
 - 포트는 80과 443만 받는다. VPS의 공인 IP는 사설 대역 검사를 통과하므로 포트를 막지 않으면 `:3000`, `:6379`, `:5432` 같은 내부 서비스에 닿는다.
 - 호스트가 풀리는 IP를 모두 검사한다. 사설, 루프백, 링크로컬, 메타데이터, CGNAT, 멀티캐스트, IPv4-mapped·NAT64·6to4 IPv6가 하나라도 있으면 거부한다.
 - 검증한 IP로만 접속한다(`_PinnedBackend`). 연결 직전에 이름을 다시 풀지 않는다. 그래야 DNS 리바인딩이 통하지 않는다.
 - 리다이렉트는 홉마다 처음부터 검증한다. 본문은 1MB, 시간은 25초를 넘기지 않는다.
-- 모델이 만든 URL(`_dictated`)은 사용자에게 카드로 묻는다. 허용한 호스트라도 믿지 않는 글이 URL을 만들 수 있으면 쿼리와 경로에 사용자 자료가 실려 나간다. 경로에 `@`나 20자를 넘는 토큰이 있으면 허용한 호스트에서도 카드를 띄운다. 카드에는 쿼리를 포함한 전체 주소를 보여 준다(`harness/approval.py`).
+- 모델이 만든 URL(`_dictated`)은 사용자에게 카드로 묻는다. 믿지 않는 글이 URL을 만들 수 있으면 쿼리와 경로에 사용자 자료가 실려 나간다. 방금 믿지 않는 글을 읽은 실행에서는 대화에 없던 주소를 모두 묻는다. 그 글이 이전 턴에만 있으면 허용한 호스트의 다른 페이지는 열되, 쿼리 문자열이 있거나 경로에 `@`, `%25`, `%40`, 20자 이상 토큰, 전화번호 꼴이 있으면 묻는다. 카드에는 쿼리를 포함한 전체 주소를 보여 준다(`harness/approval.py`).
 - PDF 파싱은 API 프로세스에서 하지 않는다. `ingest/pdf_text.py`의 `read_pdf_text`는 자식 프로세스에서 읽고(제한 시간 30초, CPU 제한, Linux에서 메모리 1GiB), 동시에 두 개까지만 띄운다. 이벤트 루프에서 동기로 파싱하면 조작한 PDF 하나가 API 전체를 멈춘다.
-- DOCX는 압축을 풀 때 선언 크기 상한을 두고, 외부 엔티티를 해석하지 않는다. 파일을 디스크에 풀지 않는다.
+- DOCX는 `word/document.xml`의 선언 크기 상한(10 MiB)을 두고, `xml.etree`로 읽는다. 이 파서는 외부 엔티티를 해석하지 않으므로 파서를 바꿀 때 이 성질을 다시 확인한다. 파일을 디스크에 풀지 않는다.
 - 이력서 PDF·DOCX 렌더는 초안에 든 이미지·링크 URL을 가져오지 않는다. 글자만 그린다.
 
 증거: `services/ai/tests/security/test_net_ssrf.py`, `test_net_files.py`.
@@ -71,7 +71,8 @@
 ## 6. 토큰과 세션
 
 - 앱은 세션을 SecureStore에 둔다. 토큰을 로그에 남기지 않는다.
-- 웹은 기본으로 access·refresh 토큰을 localStorage에 둔다. 스크립트 한 줄이 곧 계정 탈취이므로 CSP를 완화책으로 둔다. refresh 토큰을 HttpOnly 쿠키(`push_rt`)에 두고 access 토큰을 메모리에만 두는 방식이 구현돼 있다. `x-csrf: 1` 헤더가 있는 웹 요청에만 쿠키를 주고받고, fo-web은 `VITE_COOKIE_SESSION=1`로 빌드할 때만 쓴다. 쿠키는 웹과 API가 같은 사이트일 때만 실리므로 도메인을 맞춘 뒤에 켠다. fo-web `public/_headers`의 `script-src 'self'`와 인라인 테마 스크립트의 sha256 해시를 지킨다. `index.html`의 인라인 스크립트를 고치면 해시도 바꾼다(`security-headers.test.ts`가 검사한다). 새 외부 스크립트 출처를 열지 않는다.
+- 웹은 기본으로 access·refresh 토큰을 localStorage에 둔다. 스크립트 한 줄이 곧 계정 탈취이므로 CSP를 완화책으로 둔다. refresh 토큰을 HttpOnly 쿠키(`push_rt`)에 두고 access 토큰을 메모리에만 두는 방식이 구현돼 있다. `/auth/` 요청 중 `x-csrf: 1` 헤더가 있는 것만 쿠키를 주고받고, fo-web은 `VITE_COOKIE_SESSION=1`로 빌드할 때만 쓴다. 쿠키는 웹과 API가 같은 사이트일 때만 실리므로 도메인을 맞춘 뒤에 켠다.
+- 웹 CSP(fo-web `public/_headers`)의 `script-src 'self'`와 인라인 테마 스크립트의 sha256 해시를 지킨다. `index.html`의 인라인 스크립트를 고치면 해시도 바꾼다(`security-headers.test.ts`가 검사한다). 새 외부 스크립트 출처를 열지 않는다.
 - WebView에는 fo-web 오리진에서만 토큰을 준다. fo-mobile `detail-url.ts`의 `bootScript`와 `tokenEventScript`는 `location.origin`이 fo-web 오리진과 같을 때만 실행하고, `webViewNavigation`은 fo-web 오리진만 WebView 안에서 열고 다른 http(s)는 브라우저로, 나머지 스킴은 버린다. 주소 비교에 `startsWith`나 라이브러리의 `originWhitelist`를 쓰지 않는다. `originWhitelist`는 앞부분만 맞으면 통과시켜서 `https://<웹 호스트>@attacker.test` 같은 주소가 토큰을 받았다.
 - 브리지 `open` 메시지는 `/`로 시작하고 `//`로 시작하지 않는 앱 경로만 받는다.
 - `EXPO_PUBLIC_DEV_AUTH_TOKEN` 같은 개발용 비밀은 운영 번들에 상수로 남지 않게 한다(`config.ts`가 `NODE_ENV === 'production'`이면 `undefined`).
