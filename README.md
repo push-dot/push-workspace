@@ -136,6 +136,7 @@ push-workspace/
 │  ├─ feature-map.md
 │  ├─ feature-spec.md
 │  ├─ api-spec.md
+│  ├─ security.md
 │  └─ tech-stack.md
 ├─ .github/workflows/policy.yml   develop PR의 브랜치·제목 검사, legal-check, contract-check
 ├─ .gitmodules           push-fe, push-be (develop)
