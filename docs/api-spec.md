@@ -773,9 +773,10 @@ Profile: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, c
 | `0060_bot_outcome.sql` | `bot_state_v`에 `outcome_kind`, `outcome_at` 두 컬럼을 더한다(인덱스 없음). 답 없이 만료된 카드와 실패한 채팅 작업을 목록 행이 따로 그리게 한다 |
 | `0061_post_saves.sql` | `post_saves(user_id, post_id)`와 목록 인덱스. 사용자와 글을 지우면 연쇄로 지운다. 되돌리기는 `DROP TABLE post_saves` |
 | `0062_open_postings_index.sql` | 열린 공고만 담는 부분 인덱스. `GET /postings`의 총계와 facets, `GET /search/trending`이 쓴다 |
-| `0063_calendar_posting_deadline.sql` | `calendar_events.posting_id`와 (사용자, 공고) 부분 유일 인덱스. 북마크·지원이 마감 일정을 넣는 근거다. 기존 북마크에는 일정이 없다 |
+| `0063_calendar_posting_deadline.sql` | `calendar_events.posting_id`와 (사용자, 공고) 부분 유일 인덱스. 북마크·지원이 마감 일정을 넣는 근거다 |
+| `0064_calendar_deadline_backfill.sql` | 기존 북마크·지원의 마감 일정을 멱등하게 채운다. 2026-11-17에 staging에만 적용했다 |
 
-적용 메모(2026-11-11): `0053`–`0063`은 develop에 머지됐을 뿐 어느 환경에도 적용했다고 적지 않는다. 적용은 `Migrate database` 워크플로를 소유자가 돌릴 때다. `0047`–`0052`는 staging에 적용됐고 prod에는 아직 없다는 운영 메모가 있다. 이 저장소와 GitHub PR 본문만으로는 Neon 적용 로그를 확인하지 못했다(#269 머지 시점 본문은 staging·prod 모두 미적용). 적용 완료를 배포 절차처럼 단정하지 않는다.
+적용 메모(2026-11-11): `0053`–`0064`은 develop에 머지됐을 뿐 어느 환경에도 적용했다고 적지 않는다. 적용은 `Migrate database` 워크플로를 소유자가 돌릴 때다. `0047`–`0052`는 staging에 적용됐고 prod에는 아직 없다는 운영 메모가 있다. 이 저장소와 GitHub PR 본문만으로는 Neon 적용 로그를 확인하지 못했다(#269 머지 시점 본문은 staging·prod 모두 미적용). 적용 완료를 배포 절차처럼 단정하지 않는다.
 
 ## 6. 남은 차이
 
