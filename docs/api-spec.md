@@ -715,7 +715,7 @@ Profile: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, c
 | `GET /posts/{id}/comments` | page | page |
 | `POST /posts/{id}/comments` 🔑 | `body*`(1–1000), `parentId` | 201 |
 
-`Post`: `{id, author:{id, displayName}, category, title, body, imageUrls[], commentCount, viewCount, createdAt}`
+`Post`: `{id, author:{id, displayName}, category, title, body, imageUrls[], commentCount, viewCount, saved, createdAt}`. `saved`는 읽는 사용자가 이 글을 저장했는지(bool)다. 상세, 목록, 검색, `me/*` 글 목록, 작성 응답에 모두 들어가며 비로그인은 false다.
 
 ### 4.5 이미지 (core)
 
