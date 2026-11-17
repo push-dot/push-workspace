@@ -113,6 +113,51 @@ export interface components {
             text: string;
             type: "notice";
         } | {
+            id: string;
+            seq: number;
+            title?: string;
+            type: "choice";
+        } | {
+            id: "strategy" | "feedback" | "blueprints";
+            seq: number;
+            type: "plan";
+        } | {
+            score: number;
+            seq: number;
+            type: "fit";
+        } | {
+            documentId: string;
+            seq: number;
+            type: "result";
+        } | {
+            documentId: string;
+            seq: number;
+            type: "diff";
+        } | {
+            items: {
+                id: string;
+                text: string;
+            }[];
+            seq: number;
+            type: "todo";
+        } | {
+            name: string;
+            result?: {
+                [key: string]: unknown;
+            };
+            seq: number;
+            tier?: "READ" | "EXTERNAL_READ" | "SAFE_WRITE" | "RISKY_WRITE";
+            type: "tool";
+        } | {
+            id: string;
+            seq: number;
+            type: "paper";
+        } | {
+            phase: string;
+            seconds: number;
+            seq: number;
+            type: "think";
+        } | {
             expiresAt?: string;
             id: string;
             seq: number;

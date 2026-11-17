@@ -13,6 +13,15 @@ export type StreamEvent =
   | { type: 'error'; error: { code: string } }
   | { type: 'cancelled'; resumable: boolean }
   | { type: 'notice'; text: string }
+  | { type: 'choice'; id: string; title?: string }
+  | { type: 'plan'; id: 'strategy' | 'feedback' | 'blueprints' }
+  | { type: 'fit'; score: number }
+  | { type: 'result'; documentId: string }
+  | { type: 'diff'; documentId: string }
+  | { type: 'todo'; items: { id: string; text: string }[] }
+  | { type: 'tool'; name: string; tier?: 'READ' | 'EXTERNAL_READ' | 'SAFE_WRITE' | 'RISKY_WRITE'; result?: Record<string, unknown> }
+  | { type: 'paper'; id: string }
+  | { type: 'think'; seconds: number; phase: string }
   | { type: 'approval'; id: string; expiresAt?: string }
 export type Transcript = { data: { id: string; events: StreamEvent[] }[] }
 export type TranscriptMatch = { messageId: string; at: string }
