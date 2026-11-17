@@ -601,7 +601,7 @@ Push Bot은 Push 전체(공고, 지원, 캘린더, 허브, 제안, 글쓰기)를
 
 ### 15.6 빠른 시작
 
-칩은 채팅 첫 화면에서만 보인다(15.4). Push Bot 13개를 순서대로 둔다: 공고 링크로 맞추기 · 나에게 맞는 공고 찾기 · 부족한 점 찾기 · 적합도 보기 · 마감 임박 공고 정리 · 지원 현황 정리 · 캘린더 관리 · 허브 프로필 다듬기 · 경험 만들기 · 제안 답장 쓰기 · 커피챗 제안 쓰기 · 커리어 글 쓰기 · 점수 올리기. 회사 봇은 적합도 보기 · 부족한 점 찾기 · 점수 올리기 · 경험 만들기 4개다. 13개 모두 실제 기능이다. 개인 메시지 `intent`는 `match_posting`, `fit`, `gaps`, `experience`, `boost`, `find_postings`, `deadline_postings`, `applications`, `calendar`, `hub_profile`, `offer_reply`, `coffee_chat`, `career_post`를 받는다.
+칩은 채팅 첫 화면에서만 보인다(15.4). Push Bot 13개를 순서대로 둔다(디자인 ChatBotOnboardPush): 공고 링크로 맞추기 · 나에게 맞는 공고 찾기 · 부족한 점 찾기 · 적합도 보기 · 점수 올리기 · 마감 임박 공고 정리 · 지원 현황 정리 · 캘린더 관리 · 허브 프로필 다듬기 · 경험 만들기 · 제안 답장 쓰기 · 커피챗 제안 쓰기 · 커리어 글 쓰기. 회사 봇은 적합도 보기 · 부족한 점 찾기 · 점수 올리기 · 경험 만들기 4개다(디자인 ChatBotOnboard). 13개 모두 실제 기능이다. 개인 메시지 `intent`는 `match_posting`, `fit`, `gaps`, `experience`, `boost`, `find_postings`, `deadline_postings`, `applications`, `calendar`, `hub_profile`, `offer_reply`, `coffee_chat`, `career_post`를 받는다.
 
 - 빠른 시작 칩을 누르면 재료 시트가 열린다(`quick-start/[key]`). 내용은 빠른 시작마다 다르다. 재료가 다 차면 자동으로 만든 첫 메시지를 그 봇의 대화로 보낸다.
   - 마감 임박 공고 정리 시트: 공고마다 서류 상태(서류 없음 / 서류 준비됨 / 초안 있음)
