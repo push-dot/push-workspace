@@ -113,34 +113,6 @@ export interface components {
             text: string;
             type: "notice";
         } | {
-            id: string;
-            seq: number;
-            title?: string;
-            type: "choice";
-        } | {
-            id: "strategy" | "feedback" | "blueprints";
-            seq: number;
-            type: "plan";
-        } | {
-            score: number;
-            seq: number;
-            type: "fit";
-        } | {
-            documentId: string;
-            seq: number;
-            type: "result";
-        } | {
-            documentId: string;
-            seq: number;
-            type: "diff";
-        } | {
-            items: {
-                id: string;
-                text: string;
-            }[];
-            seq: number;
-            type: "todo";
-        } | {
             name: string;
             result?: {
                 [key: string]: unknown;
@@ -149,19 +121,18 @@ export interface components {
             tier?: "READ" | "EXTERNAL_READ" | "SAFE_WRITE" | "RISKY_WRITE";
             type: "tool";
         } | {
-            id: string;
-            seq: number;
-            type: "paper";
-        } | {
             phase: string;
             seconds: number;
             seq: number;
             type: "think";
         } | {
-            expiresAt?: string;
-            id: string;
+            kind: "approval" | "choice" | "plan" | "paper" | "todo" | "diff" | "fit" | "result";
+            messages: {
+                [key: string]: unknown;
+            }[];
             seq: number;
-            type: "approval";
+            surfaceId: string;
+            type: "a2ui";
         };
         Transcript: {
             data: {

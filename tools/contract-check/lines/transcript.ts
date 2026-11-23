@@ -1,4 +1,4 @@
-import type { BotContract, Event, Schema, Sends } from '../contract'
+import type { BotContract, Event, OpaqueMessages, Schema, Sends } from '../contract'
 
 type ClientEvent = BotContract.Transcript['data'][number]['events'][number]
 
@@ -10,4 +10,8 @@ type Read<Transcript> = Transcript extends { data: (infer Turn extends { events:
     : Omit<Transcript, 'data'> & { data: (Omit<Turn, 'events'> & { events: Event<Turn['events'][number], ClientEvent['type']>[] })[] }
   : Transcript
 
-export const transcript: Sends<Read<Schema<'Transcript'>>, BotContract.Transcript> = true
+type Client = Omit<BotContract.Transcript, 'data'> & {
+  data: (Omit<BotContract.Transcript['data'][number], 'events'> & { events: OpaqueMessages<ClientEvent>[] })[]
+}
+
+export const transcript: Sends<Read<Schema<'Transcript'>>, Client> = true

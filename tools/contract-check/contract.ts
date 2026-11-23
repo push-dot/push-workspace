@@ -37,6 +37,12 @@ type Keys<Body> = unknown extends Body
       ? { [Key in keyof Body & string]: Key | `${Key}.${Keys<Body[Key]>}` }[keyof Body & string]
       : never
 
+/**
+ * The server types the messages of an a2ui frame as plain objects, so the client's A2UI message types are not compared here.
+ * check.mjs compares the a2ui fixture copies instead, and push-be's pytest validates every frame against the A2UI schemas.
+ */
+export type OpaqueMessages<Client> = Client extends { type: 'a2ui' } ? Omit<Client, 'messages'> & { messages: { [key: string]: unknown }[] } : Client
+
 /** One event type of a stream union. An event type only the server has is not drift: the app ignores a frame it does not know. */
 export type Event<Union, Type extends string> = Extract<Union, { type: Type }>
 

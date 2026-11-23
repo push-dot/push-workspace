@@ -3,8 +3,9 @@
 //   BE=<push-be checkout> FE=<push-fe checkout> [ONLY="<line> ..."] [STRICT=1] node check.mjs
 //
 // A line waits while one side has no type to compare. A line named in ONLY, and every line under STRICT=1, must not wait.
+// Without ONLY it also compares the a2ui wire frames push-fe copies from push-be. They wait and fail the same way.
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,7 +17,8 @@ const MISSING = 'contract-check: push-be has no such type yet'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = resolve(here, '../..')
-const schema = resolve(process.env.BE || join(root, 'push-be'), 'packages/contracts/src/schema.ts')
+const be = resolve(process.env.BE || join(root, 'push-be'))
+const schema = join(be, 'packages/contracts/src/schema.ts')
 const client = resolve(process.env.FE || join(root, 'push-fe'), 'packages/api-client/src')
 
 const all = readdirSync(join(here, 'lines')).map((file) => file.replace(/\.ts$/, '')).sort()
@@ -36,11 +38,33 @@ const { waiting, drift } = existsSync(join(client, 'bot-contract.ts'))
   ? compile()
   : { waiting: new Map(lines.map((line) => [line, 'push-fe has no bot contract yet'])), drift: new Map() }
 
+const golden = only.length ? null : compareFixtures()
+
 const waits = mustNotWait ? 'missing' : 'waiting'
 for (const [line, diagnostics] of drift) console.log(`drift    ${line}\n${diagnostics}`)
 for (const [line, why] of waiting) console.log(`${waits}  ${line}  (${why})`)
+if (golden?.wait) console.log(`${waits}  a2ui fixtures  (${golden.wait})`)
+else if (golden?.drift.length) console.log(`drift    a2ui fixtures\n${golden.drift.map((why) => `  ${why}`).join('\n')}`)
+else if (golden) console.log(`a2ui fixtures: ${golden.count} same`)
 console.log(`contract-check: ${lines.length - drift.size - waiting.size} ok, ${drift.size} drift, ${waiting.size} ${waits}`)
-process.exit(drift.size || (mustNotWait && waiting.size) ? 1 : 0)
+const goldenFails = Boolean(golden?.drift.length || (mustNotWait && golden?.wait))
+process.exit(drift.size || (mustNotWait && waiting.size) || goldenFails ? 1 : 0)
+
+/** push-fe's copy of the a2ui wire frames must equal push-be's, byte for byte: the v0.9.1 set and every version folder under it, such as v1.0. */
+function compareFixtures() {
+  const sides = { 'push-be': join(be, 'packages/contracts/a2ui/fixtures'), 'push-fe': join(client, 'a2ui-fixtures') }
+  const absent = Object.keys(sides).find((side) => !existsSync(sides[side]))
+  if (absent) return { wait: `${absent} has no a2ui fixtures yet`, drift: [] }
+  const files = (dir) => readdirSync(dir, { recursive: true }).filter((name) => statSync(join(dir, name)).isFile())
+  const names = [...new Set(Object.values(sides).flatMap(files))].sort()
+  const drift = names.flatMap((name) => {
+    const [server, app] = Object.values(sides).map((dir) => join(dir, name))
+    if (!existsSync(app)) return [`${name}: only in push-be`]
+    if (!existsSync(server)) return [`${name}: only in push-fe`]
+    return readFileSync(server).equals(readFileSync(app)) ? [] : [`${name}: differs`]
+  })
+  return { count: names.length, drift }
+}
 
 function compile() {
   const project = mkdtempSync(join(tmpdir(), 'contract-check-'))
