@@ -21,6 +21,8 @@ const replace = (side, from, to) => (pair) => {
   writeFileSync(file, text.replace(from, to))
 }
 const remove = (side) => (pair) => rmSync(join(pair, FILES[side]))
+const GOLDEN = { server: 'be/packages/contracts/a2ui/fixtures', client: 'fe/packages/api-client/src/a2ui-fixtures' }
+const golden = (side, edit) => (pair) => edit(join(pair, GOLDEN[side]))
 
 const noCardRetry = replace('server', 'CardRetry: {', 'Renamed: {')
 const noServerTypes = (pair) => writeFileSync(join(pair, FILES.server), 'export interface paths {}\nexport interface operations {}\nexport interface components { schemas: {} }\n')
@@ -44,6 +46,7 @@ test('every line passes when the two sides agree', () => {
   const { passed, output } = check([], { STRICT: 1 })
   assert.ok(passed, output)
   assert.match(output, new RegExp(`^contract-check: ${lineCount} ok, 0 drift, 0 missing$`, 'm'))
+  assert.match(output, /^a2ui fixtures: 2 same$/m)
 })
 
 const DRIFTS = [
@@ -56,6 +59,7 @@ const DRIFTS = [
   ['the server renames a field of a site grant', 'botSiteGrants', replace('server', 'grantedAt: string;', 'at: string;')],
   ['the server drops the site grant DELETE route', 'botSiteGrantDelete', replace('server', '{ delete: unknown }', '{ get: unknown }')],
   ['the server answers a card with another status', 'cardAnswer', replace('server', 'status: "APPROVED" | "REJECTED";\n        };\n        BotSiteGrant', 'status: number;\n        };\n        BotSiteGrant')],
+  ['the server renames the surface id of an a2ui frame', 'eventA2ui', replace('server', 'surfaceId: string;', 'id: string;')],
   ['the server renames an optional body field', 'createBot', replace('server', 'displayName?: string;', 'name?: string;')],
   ['the server renames an optional field inside a body', 'send', replace('server', 'model?: string;', 'modelId?: string;')],
   ['an item of a body array has a key the server does not know', 'send', replace('client', '{ kind: string; id: string }[]', '{ kind: string; id: string; title?: string }[]')],
@@ -136,6 +140,38 @@ test('the check fails when the compiler does not run', () => {
   } finally {
     rmSync(bin, { recursive: true })
   }
+})
+
+const GOLDEN_DRIFTS = [
+  ['the client copy of an a2ui fixture differs', golden('client', (dir) => writeFileSync(join(dir, 'todo.json'), '{}\n')), /^  todo\.json: differs$/m],
+  ['the client lacks an a2ui fixture the server has', golden('client', (dir) => rmSync(join(dir, 'todo.json'))), /^  todo\.json: only in push-be$/m],
+  ['the client has an a2ui fixture the server lacks', golden('client', (dir) => writeFileSync(join(dir, 'extra.json'), '{}\n')), /^  extra\.json: only in push-fe$/m],
+  ['the client copy of a v1.0 fixture differs', golden('client', (dir) => writeFileSync(join(dir, 'v1.0/todo.json'), '{}\n')), /^  v1\.0\/todo\.json: differs$/m],
+  ['the client lacks the v1.0 set the server has', golden('client', (dir) => rmSync(join(dir, 'v1.0'), { recursive: true })), /^  v1\.0\/todo\.json: only in push-be$/m],
+  ['the server lacks the v1.0 set the client has', golden('server', (dir) => rmSync(join(dir, 'v1.0'), { recursive: true })), /^  v1\.0\/todo\.json: only in push-fe$/m],
+]
+for (const [name, edit, line] of GOLDEN_DRIFTS) {
+  test(`the check fails when ${name}`, () => {
+    const { passed, output } = check([edit])
+    assert.ok(!passed, output)
+    assert.match(output, /^drift +a2ui fixtures$/m)
+    assert.match(output, line)
+  })
+}
+
+test('the a2ui fixtures wait while push-be has none, and STRICT=1 fails', () => {
+  const noServerFixtures = golden('server', (dir) => rmSync(dir, { recursive: true }))
+  const waits = check([noServerFixtures])
+  assert.ok(waits.passed, waits.output)
+  assert.match(waits.output, /^waiting +a2ui fixtures +\(push-be has no a2ui fixtures yet\)$/m)
+  const strict = check([noServerFixtures], { STRICT: 1 })
+  assert.ok(!strict.passed, strict.output)
+})
+
+test('ONLY skips the a2ui fixtures', () => {
+  const { passed, output } = check([golden('client', (dir) => writeFileSync(join(dir, 'todo.json'), '{}\n'))], { ONLY: 'eventA2ui' })
+  assert.ok(passed, output)
+  assert.doesNotMatch(output, /a2ui fixtures/)
 })
 
 test('the check fails on a line name it does not have', () => {

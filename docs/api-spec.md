@@ -3,6 +3,7 @@
 - 버전: 2.4
 - 작성일: 2026-11-17
 - 개정 메모: 2026-11-17. 2026-11-11 이후 push-be 변경(프로필 PDF, 저장한 글과 정렬, Bot별 사용량, 공고 없는 서류, 마감 일정, 동의 게이트, 승인 카드 무기한, 소셜 계정 전화 로그인)을 push-be `299677a` 기준으로 반영했다
+- 개정 메모: 2026-11-23. 봇 카드 이벤트 여덟 가지를 `a2ui` 프레임으로 바꾼 변경(A2UI 서피스, `A2UI-Version` 헤더)을 push-be `feat/a2ui-surfaces` 기준으로 반영했다(3.3, 3.17)
 - 기준: push-be `develop` `f2ce453`, push-fe `develop` `38a04e70`. 코드가 OpenAPI(`packages/contracts/openapi.json`)와 다르면 코드를 따른다.
 - 이전 버전: `docs/api.md` (커밋 `72fe539`에서 삭제)
 - 관련 문서: [PRD.md](PRD.md), [feature-spec.md](feature-spec.md)
@@ -42,6 +43,7 @@
 - `POST /conversations/{id}/share`
 - `GET /conversations/shared/{token}`
 - `GET /conversations/{id}/artifacts`
+- `GET /conversations/{id}/turns`
 
 ## 2. 공통 계약
 
@@ -207,7 +209,8 @@
 | `POST /conversations/{id}/messages/stream` | 같은 본문. Idempotency-Key 없음 | 202가 아니면 그대로 반환. 202면 gateway가 SSE를 seq 0부터 연다 |
 | `GET /conversations/{id}/messages/stream/active` | `after` 또는 `Last-Event-ID`. 숫자가 아니면 0. `after`가 우선 | SSE. 진행 중인 작업이 없으면 204 |
 | `POST /conversations/{id}/stream/cancel` 🔑 | – | 진행 중 작업을 취소하고 `cancelled` 이벤트를 남긴다 |
-| `POST /conversations/{id}/approvals/{approvalId}` 🔑 | `optionId`, `optionIds[]` | 200. 이력서 확인 카드의 답 |
+| `GET /conversations/{id}/turns` | page, `A2UI-Version` 헤더 | ai. page. 작업 하나가 항목 하나이고 최신이 먼저다. 다시 연 대화가 카드를 다시 그릴 수 있게 저장한 프레임(`status`와 `done`은 빼고 `seq` 포함)을 담는다. 카드는 `a2ui` 프레임이고 답한 상태가 데이터 모델에 들어 있다. 대화를 볼 수 없으면 404 |
+| `POST /conversations/{id}/approvals/{approvalId}` 🔑 | `optionId`, `optionIds[]` | 200. 승인·선택 서피스의 답. `{approvalId}`는 그 서피스의 `surfaceId`다 |
 | `POST /conversations/{id}/attachments` 🔑 | multipart `file`. PDF, 10MiB | 201. 기업 대화의 PDF. 개인 채팅 첨부가 아니다 |
 | `GET /conversations/{id}/artifacts` | – | ai. 메시지 첨부 중 `DOCUMENT_VERSION`이거나 `documentId`가 있는 항목. 마크다운은 뺀다 |
 | `GET /conversations/{id}/artifacts/{name}` | – | core. 워크스페이스 파일 바이트. 이름이 `.`으로 시작하면 거절. 이름을 알면 `.md`도 받는다. 목록과 스트림은 이 파일을 보여주지 않는다 |
@@ -244,33 +247,68 @@
 - `{type:"cancelled", resumable?, seq}`. `resumable`은 문서 흐름이 살아 있어 다음 메시지가 이어 가는 경우 true다
 - 봇 채팅의 모든 프레임에는 `at`(ISO 시각)과 `turn`(불투명한 차례 id)이 붙는다. 모든 작업은 `done`, `error`, `cancelled` 중 하나로 끝나며, 작업 상태를 바꾸는 트리거(`0055`)가 이를 보장한다. 쓰이지 않은 채 `DEAD`나 `FAILED`로 끝나면 `error` 코드 `JOB_FAILED`다
 - `token` 프레임 사이에 `status`만 있으면 같은 글 한 덩어리다. 그 밖의 프레임이 끼면 새 덩어리다. `tool`과 `think`는 웹을 위해 남고 앱은 그리지 않는다
-- 그 밖은 `{type, ...payload, seq}`다. 결과와 확인 카드가 여기 들어간다.
+- 봇이 그리는 카드는 모두 `{type:"a2ui", kind, surfaceId, messages, seq}` 프레임으로 온다(아래 A2UI 서피스). 그 밖은 `{type, ...payload, seq}`다.
 - 빈 조회는 `: ping`을 보낸다. 주기는 250ms에서 시작해 두 배씩 늘리고 1000ms에서 멈춘다. 한 페이지가 200건이면 ping도 sleep도 없다.
 - `SSE_MAX_POLLS` 기본 20이다. 횟수를 다 쓰면 오류 프레임 없이 연결을 닫는다. 앱은 `GET /conversations/{id}/messages/stream/active?after=<마지막 seq>`로 다시 붙는다. `after`가 없으면 쿼리에서 뺀다. `Last-Event-ID` 헤더는 보내지 않는다. `done|error|cancelled`까지 반복한다.
 - 조회가 실패하면 `id` 없는 `{"type":"error","error":{"code":"INTERNAL","message":"internal error","details":null}}` 하나를 보낸다.
 - `type:file`이고 이름이 `.md`로 끝나거나 mime이 `text/markdown`이면 프레임을 보내지 않는다. `save_artifact`도 마크다운 file 이벤트를 내지 않는다. PDF 바이트는 워크스페이스에 남는다.
 
-**결과 이벤트** (`type:result`). gateway가 `seq`를 붙인다.
+**A2UI 서피스** (`type:a2ui`). 봇이 그리는 카드는 모두 이 프레임으로 온다. 서버는 저장한 카드로 서피스를 만든다(`services/ai/src/app/domain/a2ui.py`). 모델은 서피스를 쓰지 않는다. 예전 카드 이벤트 여덟 가지(`approval`, `choice`, `plan`, `paper`, `todo`, `diff`, `fit`, `result`)는 더 이상 보내지 않는다. 예전 카드 필드는 저장한 행에만 남는다.
 
-외부 파일(`source:external`)
+- 프레임은 `{type:"a2ui", kind, surfaceId, messages, seq, at, turn}`이다. `kind`는 위 여덟 가지 중 하나다. 다른 카드 프레임은 없다.
+- 같은 모양이 세 곳에서 온다. 스트림(`POST .../messages/stream`, `GET .../messages/stream/active`, 3.17의 봇 스트림), 봇 기록(`GET /bots/{id}/transcript`. `turn`은 없다), 대화 차례 목록(`GET /conversations/{id}/turns`)이다.
+- `messages`는 서피스 전체를 담은 스냅샷이다. 순서는 `createSurface`, `updateComponents`, `updateDataModel`이다. 모든 메시지의 `version`은 요청한 A2UI 버전이다. `createSurface`에는 `surfaceId`와 `catalogId`만 있고 테마는 없다. `updateDataModel`의 `path`는 늘 `/`이다.
+- 서피스 안의 글자는 일반 텍스트다. 클라이언트는 마크다운으로 읽지 않는다.
+- 서버가 스스로 답한 게이트(`auto`)는 프레임을 보내지 않는다. 봇이 고른 것을 `token`으로 말한다("자동으로 골랐어요: …").
+- 진행 프레임 `token`, `status`, `think`, `tool`, `notice`, `done`, `error`, `cancelled`는 바뀌지 않았다.
 
-- `taskLine`: "이력서 수정 · 올린 파일 · 경력"
-- `checklist`: 이력서 읽기, 공고 요건 정리, 적합도 계산, 경력 섹션 고치기, PDF로 만들기
-- `fileName`, `pageLine` (`A4 {n}쪽 · {size}`), `documentId`
-- 저장되면 `savedLine` "내 서류에 자동 저장됨", `cardMeta`는 `"{pageLine} · 내 서류에 자동 저장됨"`. 실패하면 `cardMeta`는 `pageLine`만
-- `company`는 공고 회사가 있을 때만
-- actions: 회사가 있으면 `{id:"apply", label:"{company}에 바로 지원하기"}`. 저장되고 `documentId`가 있으면 `{id:"convert", label:"프로필로 전환", method:"POST", path:"/api/v1/documents/{id}/profile"}`
+**`A2UI-Version` 요청 헤더**. 프레임을 돌려주는 경로에 보낸다. 대상은 `POST /conversations/{id}/messages/stream`, `GET /conversations/{id}/messages/stream/active`, `GET /conversations/{id}/turns`, `POST /bots/{id}/messages/stream`, `GET /bots/{id}/stream`, `GET /bots/{id}/transcript`다. iOS와 웹은 `1.0`, Android는 `v0.9.1`을 보낸다. 헤더가 없거나 다른 값이면 `v0.9.1`이다. gateway는 CORS에서 이 헤더를 허용한다. 두 버전은 `messages`만 다르다. 프레임, 서피스 id, 컴포넌트 id와 속성, 데이터 모델은 같다.
 
-프로필(`source:profile`)
+**서피스 id**
 
-- `taskLine`: "프로필 수정 · Push 프로필 · 경력"
-- `checklist`: 프로필 읽기, 공고 요건 정리, 적합도 계산, 경력 섹션 고치기, 프로필에 저장
-- `name`, `headline`, `title`(`"{name} · {headline}"` 또는 "Push 프로필"), `subtitle` "Push 프로필 · 방금 수정", `documentId`
-- actions는 외부와 같은 apply 규칙. `documentId`가 있으면 `{id:"view", label:"프로필 보기"}`
+| kind | `surfaceId` |
+|---|---|
+| `approval`, `choice` | 승인 id. 답하는 경로의 `{approvalId}`와 같다 |
+| `plan`, `paper`, `todo` | `{kind}:{id}:{작업 id}`(예: `plan:strategy:<uuid>`). 같은 차례의 다음 프레임이 그 서피스를 제자리에서 바꾼다. 다음 차례는 새 서피스를 받는다. id가 없는 할 일은 `todo:todo:{작업 id}`다 |
+| `fit`, `diff`, `result` | 행을 저장할 때 만든 uuid. 서피스 이전에 저장한 행은 `{kind}:{seq}`로 다시 보낸다 |
+
+작업 id는 프레임의 `turn`과 같다. 봇 기록과 대화 차례 목록은 스트림이 보낸 id를 그대로 돌려준다.
+
+**카탈로그**. 서피스는 Push 카탈로그(`catalogId` `https://push.app/a2ui/catalogs/push/v1/catalog.json`)의 컴포넌트로만 만든다. 기본 컴포넌트에 `PushChoice`, `PushTodo`, `PushDiff`, `PushPlan`, `PushFit`, `PushDocument`, `PushJobCard`를 더한다. 아직 `PushJobCard`를 보내는 카드는 없다. 컴포넌트와 속성은 push-be의 아래 파일에서 확인한다.
+
+- `packages/contracts/a2ui/README.md`: 버전 차이, 컴포넌트 속성, 클라이언트가 할 일
+- `packages/contracts/a2ui/push-catalog.json`(v0.9.1), `push-catalog.v1.json`(1.0)
+- `packages/contracts/a2ui/fixtures/*.json`(v0.9.1), `fixtures/v1.0/*.json`(1.0): 같은 이름의 예시 프레임 23개
+
+**클라이언트가 할 일**
+
+1. `surfaceId`로 서피스를 넣거나 바꾼다. 그 서피스가 있으면 `createSurface`를 버리고 `updateComponents`와 `updateDataModel`을 적용한다. 없으면 셋을 모두 적용한다.
+2. 답을 받는 서피스는 `approval`과 `choice`뿐이다(`PushChoice`). 가장 최근에 답을 기다리는 서피스 하나만 켠다. `phase`가 `waiting`인 `status`의 `cardId`가 그 서피스이고, `done.awaiting`은 차례가 멈췄다는 뜻이다. 다른 서피스는 `/open`이 true여도 끈다.
+3. `answer` 동작이 오면 `POST /bots/{id}/approvals/{surfaceId}` 또는 `POST /conversations/{id}/approvals/{surfaceId}`에 동작의 `context`를 본문으로 보낸다. 경로와 본문(`{optionId?, optionIds?}`)은 바뀌지 않았다.
+4. 답한 뒤에는 그 서피스의 데이터 모델을 직접 고친다. `/open`은 false, `/picked`는 보낸 id다(`optionIds`가 있으면 그 값, 없으면 `[optionId]`). 서버는 갱신 프레임을 보내지 않는다. 다시 연 채팅은 답한 상태가 들어간 데이터 모델을 받는다. 만료된 카드와 글로 답한 카드는 `/picked`가 `[]`이다.
+5. 서피스가 답을 기다리는 동안 입력한 글이 답이다. 클라이언트는 `/open`을 false, `/picked`를 `[]`로 고친다.
+
+`answer` 동작의 본문
+
+| 답한 방법 | 본문 |
+|---|---|
+| `answer:"pick"`, 하나를 고름 | `{optionId}` |
+| `answer:"pick"`, 여러 개를 고름 | `{optionId: 처음 고른 id, optionIds: 고른 id 전부(선택지 순서)}` |
+| `answer:"submit"`, 제출 버튼 | `{optionId:"submit", optionIds:["submit", …답할 수 있는 질문마다 고른 id(질문 순서)]}` |
+| `secondary` 버튼 | `{optionId: secondary.id}` |
+
+앱이 처리하고 서버로 보내지 않는 동작은 `open_review`(`{documentId}`), `share`(`{documentId}`), `result_action`(`{id, method?, path?}`), `open_plan`, `change`(`{optionId}`), `open_posting`(`{postingId}`)이다. `result_action`은 네 id만 실행한다. `apply`는 공고에 지원하고, `convert`는 `method`와 `path`(`POST /api/v1/documents/{id}/profile`)를 부르고, `view`는 Push 프로필을 열고, `retry_save`는 채팅에 "내 서류에 저장해 줘"를 보낸다.
+
+**결과 서피스** (`kind:result`). 요약 한 줄, "• "로 시작하는 줄, `PushDocument` 순서다.
+
+- 올린 파일을 고친 경우(`source:external`): 제목 "이력서를 저장했어요", 파일 이름, `A4 {n}쪽 · {size}`, 공유 버튼. 공고 회사가 있으면 `apply`("{company}에 바로 지원하기"), 저장되고 `documentId`가 있으면 `convert`("프로필로 전환")를 둔다.
+- 저장에 실패한 경우: 제목 "내 서류에 저장하지 못했어요. 네트워크를 확인해 주세요."와 `retry_save`("다시 저장하기")만 둔다. 공유 버튼은 없다.
+- 프로필을 고친 경우(`source:profile`): 제목 "Push 프로필에 저장했어요", 이름 `"{name} · {headline}"` 또는 "Push 프로필", 줄 "Push 프로필 · 방금 수정". 동작은 같은 `apply` 규칙과 `view`("프로필 보기")다. 공유 버튼은 없다.
+- 저장한 행의 `taskLine`과 `checklist`는 결과 서피스에 그리지 않는다.
 
 파일 이름. `edited_pdf_name`이다. 이름 조각은 프로필 표시 이름이다. 공고 회사가 있으면 `{이름}_{회사}_{직무}.pdf`다. 빈 조각은 뺀다. `/ \ : * ? " < > |`와 공백을 지우고, 80자를 넘기면 자른다. 직무는 공고의 `role`, `jobCategory`, `category`에서 고른다. `dev|data|design|plan|marketing|sales|hr|ops`는 건너뛴다. 그 칸이나 제목에 프론트엔드, 백엔드, 풀스택, 데이터, 디자인, 기획, 마케팅, 머신러닝, devops, ios, android, qa가 있으면 그 단어를 쓴다. 회사가 없으면 `{원본 줄기}_수정본.pdf`다. `_수정본`도 80자에 넣는다. 줄기가 없으면 `이력서`다.
 
-**확인 카드** (`type:choice`, `kind:RESUME_GATE`). 필드 `id`, `gate`, `title`, `recommended`, `options`, 그리고 `documentId`, `multiple`, `auto`, `detail`.
+**확인 게이트** (`kind:choice`, 저장한 카드의 `kind`는 `RESUME_GATE`). 이력서 흐름의 게이트는 선택 서피스로 온다. 질문 제목은 아래 표다. 서피스는 선택지 "그만하기"와 "취소"를 "닫기"로 보여준다.
 
 | gate | title |
 |---|---|
@@ -290,9 +328,9 @@
 | `validate_cap` | 검증을 통과하지 못했어요. 다른 방향으로 다시 고를까요? |
 | `boost` | 점수를 한 번 더 올릴까요? |
 
-결과 제시. 프로필 기본 제목은 "Push 프로필에 저장했어요. 결과를 확인할까요?"이고 안내 "PDF는 Push 프로필에서 내보낼 수 있어요."를 붙인다. 외부 파일이 저장되면 "내 서류에 저장했어요. 결과를 확인할까요?". 저장에 실패하면 "내 서류에 저장하지 못했어요. 결과를 확인할까요?".
+결과 확인 게이트(`present`)는 묻지 않는다. 흐름은 저장하고 바로 이어 가며, 이 게이트는 프레임도 `token`도 보내지 않는다.
 
-**페이지 읽기 카드** (봇 채팅의 `approval`, 도구 카드). 봇이 스스로 고른 페이지를 열기 전에 묻는다. 선택지 id는 `approve`(한 번 허용), `approve_always`(그 봇과 그 사이트 항상 허용), `reject`(거절)다. 카드는 답할 때까지 기다린다. 새 카드에는 `expiresAt`이 없고(null) 만료되지 않는다. 지금 서버가 묻는 카드는 모두 그렇고, 이 변경 전에 만든 카드만 시간을 가진다. 그런 오래된 카드가 만료되면 앱은 닫기와 다시 요청(`POST /bots/{id}/approvals/{cardId}/retry`)을 보인다. 선택지와 꼬리말은 `harness/approval.py` 표 한 곳이 정한다. 선택 카드와 수정 카드에는 `expiresAt`이 없다. 이용자가 이 봇에게 준 주소(같은 대화의 메시지에 든 링크, 이 대화에 붙인 링크 자료, 내 자료 읽기 허용이 켜진 때의 저장한 링크)는 카드 없이 읽고, 어떤 실행 방식에서도 마찬가지다. 허용은 한 사이트(host)에만 미친다. 다른 사이트로 넘어가는 리디렉션은 멈추고, 그 사이트를 읽으려면 새로 묻는다. 항상 허용은 `bot_site_grants(bot_id, host)`에 저장되고 봇을 지우면 함께 지워진다. 이 카드는 3.4의 `approvals` 승인 종류 넷과 별개다.
+**페이지 읽기 카드** (봇 채팅의 `approval` 서피스, 도구 카드). 봇이 스스로 고른 페이지를 열기 전에 묻는다. 선택지 id는 `approve`(한 번 허용), `approve_always`(그 봇과 그 사이트 항상 허용), `reject`(거절)다. 카드는 답할 때까지 기다린다. 새 카드에는 `expiresAt`이 없고(null) 만료되지 않는다. 지금 서버가 묻는 카드는 모두 그렇고, 이 변경 전에 만든 카드만 시간을 가진다. 서피스는 만료 시각을 싣지 않는다. 그런 오래된 카드가 만료되면 `/open` false, `/picked` `[]`로 다시 온다. 다시 요청 경로(`POST /bots/{id}/approvals/{cardId}/retry`)는 남아 있다. 선택지와 꼬리말은 `harness/approval.py` 표 한 곳이 정한다. 선택 카드와 수정 카드에는 `expiresAt`이 없다. 이용자가 이 봇에게 준 주소(같은 대화의 메시지에 든 링크, 이 대화에 붙인 링크 자료, 내 자료 읽기 허용이 켜진 때의 저장한 링크)는 카드 없이 읽고, 어떤 실행 방식에서도 마찬가지다. 허용은 한 사이트(host)에만 미친다. 다른 사이트로 넘어가는 리디렉션은 멈추고, 그 사이트를 읽으려면 새로 묻는다. 항상 허용은 `bot_site_grants(bot_id, host)`에 저장되고 봇을 지우면 함께 지워진다. 이 카드는 3.4의 `approvals` 승인 종류 넷과 별개다.
 
 `review` 선택지는 `CLASSIC|MODERN|COMPACT|ATS`다. `AUTO`는 카드에서 멈춘다. `BYPASS`는 `mode_select`, `validate_cap`, 첨부가 없는 `intake`를 빼고 자동으로 답한다.
 
@@ -541,15 +579,15 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
-| `POST /bots/{id}/messages/stream` | `SendBody{text*(1–20000), attachments?(≤10), intent?, accessMode?, ai?}`. `attachments`는 `{kind: file\|document\|posting\|link, id}` | 200 SSE. 첫 보내기에서 대화를 만든다. 스트림은 종료 이벤트 뒤에만 닫힌다. 403 `CONSENT_REQUIRED`, 402 `INSUFFICIENT_CREDITS`, 429 `QUEUE_BUSY`(`retryAfterSec`, `ahead`), 409 `ATTACHMENT_GONE`(`{kind, id}`), 404(보내는 중 봇이 지워진 경우도) |
-| `GET /bots/{id}/stream` | `after`(seq) 또는 `Last-Event-ID` | 진행 중 작업을 `after`부터 다시 이어 준다. 돌고 있는 작업이 없으면 204 |
+| `POST /bots/{id}/messages/stream` | `A2UI-Version` 헤더. `SendBody{text*(1–20000), attachments?(≤10), intent?, accessMode?, ai?}`. `attachments`는 `{kind: file\|document\|posting\|link, id}` | 200 SSE. 첫 보내기에서 대화를 만든다. 스트림은 종료 이벤트 뒤에만 닫힌다. 403 `CONSENT_REQUIRED`, 402 `INSUFFICIENT_CREDITS`, 429 `QUEUE_BUSY`(`retryAfterSec`, `ahead`), 409 `ATTACHMENT_GONE`(`{kind, id}`), 404(보내는 중 봇이 지워진 경우도) |
+| `GET /bots/{id}/stream` | `after`(seq) 또는 `Last-Event-ID`, `A2UI-Version` 헤더 | 진행 중 작업을 `after`부터 다시 이어 준다. 돌고 있는 작업이 없으면 204 |
 | `POST /bots/{id}/stream/cancel` 🔑 | – | 200 `{status:"CANCELLED", resumable}`. 돌고 있는 작업이 없으면 409 `CONFLICT` |
-| `POST /bots/{id}/approvals/{cardId}` 🔑 | `optionId` 또는 `optionIds` | 200 `{id, status, optionId}`. 실행이 이어지면 202이고 앱은 `GET /bots/{id}/stream`을 따라간다. 403 `CONSENT_REQUIRED`, 402 `INSUFFICIENT_CREDITS`, 409 `APPROVAL_ALREADY_RESOLVED`, 410 `APPROVAL_EXPIRED`(`reject`는 만료 뒤에도 200으로 카드를 닫는다) |
+| `POST /bots/{id}/approvals/{cardId}` 🔑 | `optionId` 또는 `optionIds` | 승인·선택 서피스의 답. `{cardId}`는 그 서피스의 `surfaceId`다. 200 `{id, status, optionId}`. 실행이 이어지면 202이고 앱은 `GET /bots/{id}/stream`을 따라간다. 403 `CONSENT_REQUIRED`, 402 `INSUFFICIENT_CREDITS`, 409 `APPROVAL_ALREADY_RESOLVED`, 410 `APPROVAL_EXPIRED`(`reject`는 만료 뒤에도 200으로 카드를 닫는다) |
 | `POST /bots/{id}/approvals/{cardId}/retry` 🔑 | – | 200 `{id, status:"PENDING", openedAt, expiresAt}`. 수명이 있는 오래된 도구 카드만 받는다(없으면 404). 새 메시지가 그 뒤에 왔으면 409 `APPROVAL_SUPERSEDED` |
-| `GET /bots/{id}/transcript` | `cursor`, `limit`(30, 최대 100) | ai. 200 `{data: Turn[], page, live}`. 최신 차례가 먼저이고 `live`는 첫 페이지에만 있다(`{turnId, lastSeq}`) |
+| `GET /bots/{id}/transcript` | `cursor`, `limit`(30, 최대 100), `A2UI-Version` 헤더 | ai. 200 `{data: Turn[], page, live}`. 최신 차례가 먼저이고 `live`는 첫 페이지에만 있다(`{turnId, lastSeq}`) |
 | `GET /bots/{id}/transcript/matches` | `q*`(≤200) | 200 `{data:{total, items:[{messageId, turnId, at}]}}`. 최신순, 최대 200건 |
 
-한 차례(`Turn`)는 `{id, status, createdAt, user, answer, events, assistant}`이다. `events`에는 `done`이 없고, 붙어 있는 `token`은 하나로 합쳐지며, 종료 이벤트는 첫 번째만 남는다. 진행 중인 차례는 단계(`phase`)가 있는 `status`를 모두 남기고, 끝난 차례는 기다림(`waiting`)만 남긴다. 카드 이벤트에는 `resolution`, `openedAt`, `expiresAt`(답을 기다리는 카드는 null), `retryable`이 붙는다. `assistant.sources`는 답에 쓴 출처다.
+한 차례(`Turn`)는 `{id, status, createdAt, user, answer, events, assistant}`이다. `events`에는 `done`이 없고, 붙어 있는 `token`은 하나로 합쳐지며, 종료 이벤트는 첫 번째만 남는다. 진행 중인 차례는 단계(`phase`)가 있는 `status`를 모두 남기고, 끝난 차례는 기다림(`waiting`)만 남긴다. 기다림의 `since`는 그 카드가 열린 시각이다. 카드는 3.3의 `a2ui` 프레임이고 `seq`와 `at`이 붙는다. `surfaceId`는 스트림이 보낸 값과 같다. 답한 상태는 데이터 모델에 들어 있다(`/open` false, `/picked`). 카드에는 `resolution`, `openedAt`, `expiresAt`, `retryable`이 따로 붙지 않는다. 카드로 시작한 차례는 `answer`(`{approvalId, optionId, optionIds?}`)에 그 답을 담는다. `assistant.sources`는 답에 쓴 출처다.
 
 **자료 (core)**
 
