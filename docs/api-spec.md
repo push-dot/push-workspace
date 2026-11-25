@@ -531,6 +531,8 @@ Google은 core, `GET /integrations/job-sites`는 gateway다.
 
 ### 3.15 billing (core)
 
+기업 결제는 fo-web에서 토스페이먼츠로 한다(원화). 관리자만 부른다. `POST /billing/toss/billing-auth`(빌링키 등록 준비: `customerKey`, `amount`), `POST /billing/toss/billing-confirm`(빌링키로 첫 달 결제, 이후 매달 갱신), `POST /billing/toss/topup` · `POST /billing/toss/topup-confirm`(크레딧 팩, 주문 금액과 결제 금액이 같아야 한다), `POST /billing/toss/cancel`(다음 갱신부터 해지). 아래 Stripe 기업 경로는 남아 있지만 fo-web은 쓰지 않는다.
+
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
 | `GET /billing` | – | 아래. 개인 또는 기업 멤버. 기업인데 회사가 없으면 404 |
@@ -818,7 +820,7 @@ Profile: `{userId, displayName, avatarUrl, headline, jobCategory, tenureYears, c
 
 ## 6. 남은 차이
 
-- 서버는 프로필 저장 확인 같은 확인 게이트를 보내지 않는다. 프로필은 묻지 않고 저장하고, 앱이 바뀐 필드를 보여 주며 `되돌리기`(이전 값을 `PATCH /me/profile`로 보냄)를 둔다. 지원·제안 수락·지원자 단계 변경, 글·제안·팔로우 같은 밖으로 나가는 쓰기는 그대로 승인을 묻는다.
+- 서버는 프로필 저장 확인 같은 확인 게이트를 보내지 않는다. 프로필은 묻지 않고 저장하고, 앱이 바뀐 필드를 보여 주며 `되돌리기`(이전 값을 `PATCH /me/profile`로 보냄)를 둔다. 지원·제안 수락·지원자 단계 변경, 글·제안·팔로우 같은 밖으로 나가는 쓰기는 그대로 승인을 묻는다. 기업 대화는 "바로 실행"이 없다. 공고 게시 · 마감 · 게시한 공고 수정 · 제안 · 회사 글도 승인 카드가 있어야 core가 받는다(`internal-auth.ts` `APPROVAL_ROUTES`).
 - 개인 최근 검색 목록과 모두 지우기가 없다. 많이 찾는 검색어는 `GET /search/trending`이다.
 - "이번 주 많이 본 공고" 경로가 없다. `sort=popular`는 전체 기간 조회수다.
 - 서류 보관은 `POST /documents/{id}/restore`, 내 링크는 `POST /me/links/{id}/restore`로 되돌린다. 경력 근거(source) 삭제는 되돌리는 경로가 없고, 근거가 참조하면 409다.
